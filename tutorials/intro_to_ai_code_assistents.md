@@ -172,20 +172,89 @@ Keep in mind what this file is and isn't. It **doesn't make the model smarter**.
 
 ## Skills
 
-A **skill** is a folder with a `SKILL.md` file: instructions (and sometimes scripts and reference files) that teach the agent *how* to do a specific kind of task. For example: how to brainstorm a feature, how to do TDD, or how your organization reads FDA data.
+A **skill** is one or more Markdown files that teach the agent how to do one specific kind of task. 
+Think of it as the onboarding document you'd hand a new team member: "here's how we do X". 
 
-The main difference from `AGENTS.md` is **when it loads**:
+Each skills has it's own folder with a `SKILL.md` file of instructions, and it can also hold scripts for the agent to run, templates, and reference documents.
 
-- `AGENTS.md` is loaded into **every** request.
-- A skill is loaded **only when it's needed**. The agent sees only each skill's name and one-line description. When a task matches the description (or you type `/the-skill-name`), the full instructions are loaded. That's why you can install dozens of skills without filling the context window.
+Skills are an open standard ([agentskills.io](https://agentskills.io)), so the same skill works in Cursor, Claude Code, Codex, and others.
 
-Cursor reads skills from `.cursor/skills/` and `.agents/skills/` in the project, from `~/.cursor/skills/` for all your projects. Type `/` in the chat to see the skills available to you.
+Two kinds of skills (but many skills mix both kinds): 
 
-You'll write your own skills in a later tutorial. Before writing one, check whether someone already wrote it.
+- **Procedural skills** teach a *process*: which steps to take, in what order, and when to stop and ask you.
+- **Knowledge skills** teach *what the model doesn't know*: your company's conventions, an internal API, or how to read FDA data. 
+
+Here's a knowledge skill for our app:
+
+```markdown
+---
+name: openfda-devices
+description: How to query and interpret openFDA medical device data (recalls, classification, product codes). Use when working with FDA recalls or device classification.
+---
+
+# openFDA device data
+
+[useful information the agent should know about how your organization works with openFDA data]
+```
+
+The header (a.k.a. **Frontmatter**) is used to identify the skill and provide a description.
+
+The agent decides if the description fits what you asked, and loads the full `SKILL.md`, usually **automatically**. You don't have to ask for it. But if you want to, you can type `/` in the chat and pick it from the list (for example `/brainstorming`). The skill applies to that one message only.
+
+
+### Built-in skills
+
+Cursor comes with [built-in skills](https://cursor.com/docs/skills#built-in-cursor-skills), for example `/create-skill` (helps you write a new skill), `/create-rule`, `/canvas` (builds an interactive report next to the chat), and `/review`. They show up in the `/` list next to the skills you add.
+
+### Project skills vs. user skills
+
+Where a skill's folder lives decides where it works:
+
+- **Project skills** live inside the project, in `.cursor/skills/` or `.agents/skills/`. They work only in this project, and since they're in the repo, everyone who clones it gets them. Use them for project knowledge, like the `openfda-devices` skill above.
+- **User skills** live in your home folder, in `~/.cursor/skills/` or `~/.agents/skills/`. They work in all your projects, but only on your machine. Use them for your personal way of working.
+
 
 :warning: A skill is instructions that your agent follows, often with scripts it runs on your machine. Installing a skill means trusting its author. Prefer popular, well-known repos, and **read the `SKILL.md` before you use it**.
 
+### The `research` skill in action 
 
+Let's install a useful skill by Matt Pocock: `/research`
+
+```bash
+npx skills add mattpocock/skills -a cursor
+```
+
+When asked, install All Matt Pocock skills, one of them is `research` (we will use many of Matt's skills later).
+
+
+The `/research` skill is a single `SKILL.md` file that look like this:
+
+```markdown
+---
+name: research
+description: Investigate a question against high-trust primary sources and capture the findings as a Markdown file in the repo. Use when the user wants a topic researched, docs or API facts gathered, or reading legwork delegated to a background agent.
+---
+
+Spin up a **background agent** to do the research, so you keep working while it reads.
+
+Its job:
+
+1. Investigate the question against **primary sources** (official docs, source code, specs, first-party APIs), not a secondary write-up of them. Follow every claim back to the source that owns it.
+2. Write the findings to a single Markdown file, citing each claim's source.
+3. Save it where the repo already keeps such notes; match the existing convention, and if there is none, put it somewhere sensible and say where.
+```
+
+Now let's see it in action. Open a new chat in **Agent** mode and send a simple question WITHOUT `/research` skill:
+
+> What is the meaning of the product code OAE?
+
+The agent answers the question, and even might fetch some information from the internet. 
+
+Now try it again, but with `/research` skill:
+
+> /research What is the meaning of the product code OAE?
+
+The agent answers the question. But since the agent now has much more trusted information, it also points to a mismatch in the data `fda_pathway` in `portfolio.yaml`.
 
 
 # Exercises
@@ -241,10 +310,6 @@ You should see about **30-40% fewer lines**, with the same coverage.
 > The rule is saved in the project's `.cursor/rules/` folder, so it applies only to this project.
 
 
-
-
-
-
 ### :pencil2: Keep sensitive data away from the agent
 
 Put a fake key in your `.env`:
@@ -270,13 +335,93 @@ A good direction is to block that door with a `.cursorignore` file in the projec
 
 The chat you just used already holds the key, so open a **new** chat. Ask for the API key again. The read tool should refuse `.env`. 
 
-Ignore files limit what the agent reads with its file tools. They are **not** a security boundary. A real secret does not belong on a machine where an agent runs terminal commands.
+> [!WARNING]
+> Ignore files limit what the agent reads with its file tools. They are **not** a security boundary.
+>
+> Can you think of a simple prompt to bypass this?
+>
+> A real secret does not belong on a machine where an agent runs terminal commands.
+
+
+### :pencil2: Find related recalls, with Matt Pocock's skills set
+
+When a device is recalled, the RA team wants to know: *could the same problem hit one of our products?* The current API doesnt provide a convenient way to know that. 
+
+We want to add a **related recalls** endpoint.
+
+> `GET /products/{product_id}/related-recalls` returns the recalls that may be relevant to one of our products. Each recall comes with a few facts: which product code matched, whether the recall is still open, and when it started.
+
+The endpoint doesn't decide which recall matters most. It gathers the candidates and the facts, and a person judges. (Later in the course, when we learn MCP, an AI agent will use this endpoint and do the judging.)
+
+It sounds simple, but "may be relevant" hides business decisions:
+
+- Each product in `data/portfolio.yaml` has a few product codes. The first one or two describe the product itself, and the others are related devices (for example, the wires of a pacemaker). Should the endpoint return recalls for all of them?
+- Some recalls are still **open**, others are already closed. Show both?
+- Should a 10-year-old recall still show up?
+
+Hand this to an agent as is, and it will make these decisions for you, silently.
+
+[Matt Pocock](https://github.com/mattpocock/skills) publishes a set of small skills he uses every day. Each skill does one job. You call them with `/`. In this exercise you'll go through this set:
+
+| Skill | What it does here |
+|---|---|
+| `/setup-matt-pocock-skills` | One-time setup: tells the other skills where to save tickets and docs. |
+| `/grill-with-docs` | The agent interviews **you** until no decision is left open, and writes the decisions down. |
+| `/to-spec` | Turns the interview into a spec. |
+| `/to-tickets` | Splits the spec into small tickets. |
+| `/implement` | Builds one ticket, test first (`/tdd`), then reviews its own code (`/code-review`). |
+| `/diagnosing-bugs` | Fixes a bug by reproducing it first, not by guessing. |
+
+You already installed Matt's skills in the `/research` section.
+
+#### Step I: setup
+
+New chat, **Agent** mode:
+
+> /setup-matt-pocock-skills
+
+For **Issue tracker**, choose **Local markdown** (tickets become files under `.scratch/`). Keep the other defaults, and choose `AGENTS.md` if asked.
+
+#### Step II: get grilled
+
+Open a **new** chat:
+
+> /grill-with-docs [paste the mission above]
+
+The agent asks you questions and usually suggests an answer. Don't just accept it, these are **your** decisions.
+
+Watch the file tree while you answer. `CONTEXT.md` (a glossary of your terms, for example what a "related recall" is) and `docs/adr/` (an architecture decision record, if needed, depending on your project) appear. Future chats read them, so the decisions survive this chat.
+
+The agent might suggest to implement or to write tests. But don't do it yet, we want to write a spec first.
+
+#### Step III: write the spec
+
+Same chat:
+
+> /to-spec
+
+Read the spec. I know, it is a lot of text, try to read it carefully. Is everything you decided there? Is there anything you *didn't* decide?
+
+
+#### Step V: implement, one ticket per chat
+
+Same chat:
+
+> /implement
+
+Implement itself invokes a few other skills
+
+- Build the feature test-first with `/tdd` (test driven development write tests first, then the code that makes them pass)
+- Run the full test suite once at the end.
+- Run `/code-review`, which checks the code against the repo's standards and against the spec.
+
+
+> [!TIP]
+> You don't need to remember all of Matt's skills. Describe your situation to `/ask-matt`, and it tells you which skills to use, and in which order. For example: *"/ask-matt I got a pile of bug reports, where do I start?"*
 
 
 
-
-
-### :pencil2: Migrate all our data to a database, with Superpowers
+### :pencil2: Migrate all API data to a database, with Superpowers skills set
 
 Today the app reads its own data from files: products from `data/portfolio.yaml`, updates from `data/updates/*.md`. 
 
@@ -330,98 +475,3 @@ Once you approve the plan, Superpowers is ready to execute the tasks. Two option
 > [!NOTE]
 > Cursor also has a built in Plan mode. It is not as powerful as Superpowers, use it when you need a lightweight planing process. 
 
-
-
-
-
-
-
-
-
-
-### :pencil2: Implement the recalls spec
-
-Take the spec you wrote with `grill-me` and `to-spec`, and implement it with Superpowers. Start a new chat and `@`-mention the spec file. Pay attention to the moment the brainstorming skill asks things the spec already answers. That's the value of writing decisions down.
-
-Verify the result yourself: `pulse-dr` (a pacemaker) must get pacemaker recalls and must **not** get defibrillator or ablation catheter recalls. Write that check as a test.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### :pencil2: A file bigger than the context window
-
-`data/archive/news_dump.jsonl` is about 4 MB, roughly **1,000,000 tokens**. That's more than any model's context window.
-
-New chat, **Agent** mode:
-
-> Which regulator appears most often in `data/archive/news_dump.jsonl`, and in which year were there the most news items?
-
-Watch what the agent does and keep an eye on the context ring:
-
-- Did it try to read the whole file? Or did it read only the first few lines to learn the format, and then write a small script (or a terminal command) to count?
-- Click the context ring. How much of the window did this question use?
-
-If it struggled, open a new chat and give it a better prompt:
-
-> `data/archive/news_dump.jsonl` is too big to read. Look at its first 3 lines to learn the format, then write and run a short Python script that answers: which regulator appears most often, and which year had the most news items?
-
-Check one number yourself. This command counts the FDA items: `grep -c '"jurisdiction": "FDA"' data/archive/news_dump.jsonl` (Windows PowerShell: `(Select-String '"jurisdiction": "FDA"' data/archive/news_dump.jsonl).Count`).
-
-
-
-
-
-
-
-
-### :pencil2: Get grilled before you build
-
-Remember the vibe-coded `GET /products/{product_id}/recalls` endpoint from the previous tutorial? The hard part wasn't the code. It was the decision about what counts as a "relevant" recall, and the agent made that decision without asking.
-
-`grill-me` reverses the roles: the agent interviews **you**, one question at a time, until the plan has no open decisions.
-
-New chat, **Agent** mode:
-
-> /grill-me I want an endpoint `GET /products/{product_id}/recalls` that returns the recalls relevant to each product in our portfolio.
-
-Answer the questions. When you don't know an answer, say so and ask the agent to research it. Hints:
-
-- In the FDA world a device type is identified by a 3-letter **product code**, and every recall carries one (`product_code`). Our products in `data/portfolio.yaml` have empty `product_codes` lists. Who fills them in, and from what? (Look at `data/fixtures/classification.json`.)
-- Should recalls of *any* company count, or only our competitors'? How far back?
-
-When the interview is done, run `/to-spec` to turn the conversation into a written spec. If it asks you to run `/setup-matt-pocock-skills` first, do that. Read the spec and commit it. We implement it in the exercises at the end of this tutorial.
-
-Compare: how many decisions are in this spec that the vibe-coding run made silently?
-
-
-
-
-
-
-
-
-### skills.sh
-
-[skills.sh](https://skills.sh) is a public directory of agent skills (run by Vercel), with a leaderboard of the most installed ones. It comes with a CLI:
-
-```bash
-npx skills find <topic>                  # search for skills
-npx skills add <owner/repo> -a cursor    # install skills from a GitHub repo for Cursor
-npx skills list -a cursor                # list what's installed
-```

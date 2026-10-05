@@ -223,45 +223,37 @@ Let's ask a few more important questions about the `.env` file:
 
 
 > - The `.env` file contains the `OPENFDA_MODE` variable. What's the difference between `fixture` and `live` mode?
+> - How do I work with the real openFDA API?
 > - The `.env` file contains the `OPENFDA_TIMEOUT_SECONDS` variable. What does it do?
 
 
-### :pencil2: Vibe coding: recalls that matter for a product
+### :pencil2: Vibe coding: what kind of device is each product?
 
 Let's start using the built in Cursor coding assistant to add new functionality to our API. We'll begin with the most naive and simple approach, known as **vibe coding**: you describe what you want in plain language and trust the LLM to handle everything (coding style, architecture, design decisions), judging the result only by trying it.
 
-:warning: In vibe coding the harness is very weak. You give the LLM no guidance, no conventions and no guardrails, and just hope it's good enough to complete the task. The goal of this exercise is to let you *experience* it, and to see why it's **not** the right approach. Later in the course we'll build a proper harness (skills, MCPs, steering, and more).
+:warning: In vibe coding the harness is very weak. You give the LLM no guidance, no conventions and no guardrails, and just hope it's good enough to complete the task. The goal of this exercise is to let you *experience* it. Later in the course we'll build a proper harness (skills, MCPs, steering, and more).
 
-The Regulatory Affairs team wants to know which recalls of similar devices on the market are relevant to each of our products.
+In the US, every type of medical device has a 3-letter **product code**. For example, `DXY` is an implantable pacemaker. The FDA keeps a **classification** database that tells, for each product code:
+
+- the **device name**, for example "Implantable Pacemaker Pulse-Generator",
+- the **device class**, which is the risk level: class 1 is low risk (like a bandage), class 2 is medium, and class 3 is high risk (like a pacemaker),
+- the **medical specialty**, for example "Cardiovascular".
+
+Our products already list their product codes in `data/portfolio.yaml`, and a sample of the classification database is saved in `data/fixtures/classification.json`. But the API doesn't use this data yet, so nobody can see what kind of device each product is.
 
 In **Agent** mode, ask exactly this, without adding any more details:
 
-> Add an endpoint `GET /products/{product_id}/recalls` that returns the recalls relevant to that product.
+> Add an endpoint `GET /products/{product_id}/classification` that shows the FDA classification of the product.
 
-Try it. It will probably look like it works:
-
-```bash
-curl "http://127.0.0.1:8000/products/pulse-dr/recalls"
-curl "http://127.0.0.1:8000/products/orbit-surgical/recalls"
-curl "http://127.0.0.1:8000/products/heartlink-app/recalls"
-```
-
-Now look closer and find out why the result is not good enough:
-
-1. **How did it decide what "relevant" means?** In **Ask** mode, ask the agent to explain the matching rule it wrote. Is it matching words from the product name? From the tags? From `intended_use`? Did *you* choose that rule, or did the LLM guess it?
-2. **Check the results yourself.** `pulse-dr` is a pacemaker. Do you get defibrillator, ablation catheter or AED recalls? Are pacemaker recalls missing? What does `heartlink-app` (a mobile app) get?
-3. **Look at `data/portfolio.yaml`.** Every product has an empty `product_codes` list. In the FDA world, recalls are matched to a device type by its 3-letter **product code** (for example `DXY`), and every recall in the data carries one (`product_code`). The LLM didn't know this, and it had no way to fill in the codes, so it invented a weaker rule.
-5. **Try the same prompt in a new chat with different model** (after discarding, see below). Do you get the same rule? Usually not: each run makes different decisions for you.
-6. **Ask yourself:** if you can't tell whether the answer is correct by looking at it, how would you know it's correct?
-
-The lesson: vibe coding works when "it looks right" means "it is right", like a simple endpoint. Here the hard part is a **domain decision** (what counts as relevant?), and the LLM silently made it for you. In real work, you guide the agent with the knowledge it lacks. We'll learn how to do that later in the course.
-
-**Discard the changes.** In the Cursor chat, click **Undo All** (or restore the checkpoint before your prompt). Or, from the terminal:
+Try it:
 
 ```bash
-git restore .     # undo edits to existing files
-git clean -fd     # delete new files the agent created
+curl "http://127.0.0.1:8000/products/pulse-dr/classification"
 ```
+
+The agent may well implement this successfully, and the decisions it made along the way may well be reasonable. But did you aprroved them? Where are those decisions written down? Did it miss something you would have wanted? That's the gap we'll close later in the next tutorial.
+
+**Discard the changes.** In the Cursor chat, click **Undo All** (or restore the checkpoint before your prompt). 
 
 ### :pencil2: Debug a bug: with and without Debug mode
 

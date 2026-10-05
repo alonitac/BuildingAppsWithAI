@@ -39,25 +39,13 @@ Work hard, and have fun 😊
  <td><a target="_blank" href="tutorials/intro_to_api_in_python.md">Intro to APIs in Python</a></td>
  <td align="center"></td>
  <td align="center"><a target="_blank" href="https://exit-zero-academy.github.io/DevOpsTheHardWayAssets/multichoice-questions/intro_to_api_in_python.html"><img src="https://exit-zero-academy.github.io/DevOpsTheHardWayAssets/img/qm.png" /></a></td>
+ <td align="center"><a target="_blank" href="tutorials/intro_to_api_in_python.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
 <tr>
- <td>3</td>
- <td>Networking</td>
- <td><a target="_blank" href="tutorials/http_protocol.md">HTTP protocol</a></td>
+ <td>2</td>
+ <td>Coding Agents</td>
+ <td><a target="_blank" href="tutorials/intro_to_ai_code_assistents.md">Coding Agents</a></td>
  <td align="center"></td>
- <td align="center"><a target="_blank" href="https://exit-zero-academy.github.io/DevOpsTheHardWayAssets/multichoice-questions/http_and_api.html"><img src="https://exit-zero-academy.github.io/DevOpsTheHardWayAssets/img/qm.png" /></a></td>
- <td align="center"><a href="tutorials/http_protocol.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
-
-</tr>
-
-<tr>
- <td>4</td>
- <td>Python</td>
- <td><a target="_blank" href="tutorials/python_unittesting.md">Unittesting in Python</a></td>
- <td align="center"></td>
- <td align="center"></td>
- <td align="center"></td>
-
+ <td align="center"><a target="_blank" href="tutorials/intro_to_ai_code_assistents.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
 </tr>
 
 </table>
-
