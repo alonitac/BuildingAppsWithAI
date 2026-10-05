@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Agent Loop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #F3EEE3;
+  --ink: #121212;
+  --agent: #2B59FF;
+  --llm: #D97757;
+  --hl: #FFE14A;
+  --ok: #14B86A;
+  --mute: #8a8473;
+  --dark: #17161b;
+  --mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #0d0d0d; overflow: hidden; }
+body { font-family: 'Space Grotesk', system-ui, sans-serif; color: var(--ink); }
+#stage {
+  position: absolute; left: 50%; top: 50%; width: 1600px; height: 900px;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(rgba(18,18,18,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18,18,18,.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  overflow: hidden; user-select: none; cursor: pointer;
+}
+section { position: absolute; inset: 0; display: none; }
+#counter { position: absolute; right: 30px; top: 30px; font: 15px var(--mono); color: var(--mute); z-index: 2; }
+h2 { font-size: 76px; margin: 0; letter-spacing: -.03em; }
+.c-agent { color: var(--agent); } .c-llm { color: var(--llm); }
+
+/* ---------- title ---------- */
+#title { flex-direction: column; justify-content: center; padding: 0 120px; }
+#title h1 { font-size: 150px; margin: 0; letter-spacing: -.04em; line-height: 1; }
+#title p { font-size: 34px; margin: 30px 0 0; color: #444; }
+#title .hint { position: absolute; bottom: 60px; left: 120px; font: 18px var(--mono); color: var(--mute); }
+
+/* ---------- agent = model + harness ---------- */
+#formula { padding: 70px 80px; }
+#formula .row { display: flex; align-items: center; gap: 36px; margin-top: 70px; }
+#formula .op { font: 700 90px var(--mono); }
+.panel { background: #fff; border: 4px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); }
+.panel > .ttl { padding: 14px 22px; border-bottom: 4px solid var(--ink); font: 700 32px 'Space Grotesk'; color: #fff; }
+#model { width: 380px; }
+#model .ttl { background: var(--llm); }
+#model .in { height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; font: 700 34px 'Space Grotesk'; }
+#model .in svg { width: 170px; height: 170px; }
+#harness { flex: 1; }
+#harness .ttl { background: var(--agent); }
+#harness .in { height: 420px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; padding: 28px; }
+.sub { border: 3px solid var(--ink); background: var(--paper); padding: 20px 24px; display: flex; flex-direction: column; }
+.sub h3 { margin: 0 0 18px; font-size: 34px; }
+.chip { font: 700 22px var(--mono); border: 3px solid var(--ink); background: #fff; padding: 10px 14px; margin-bottom: 14px; }
+.sub.loop { align-items: center; justify-content: center; }
+.sub.loop svg { width: 200px; height: 200px; }
+.sub.loop h3 { align-self: flex-start; }
+
+/* ---------- scene ---------- */
+#step { position: absolute; top: 26px; left: 40px; font: 700 20px var(--mono); }
+
+.block { position: absolute; background: #fff; border: 4px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); transition: box-shadow .25s, transform .25s; }
+.block.on { box-shadow: 14px 14px 0 var(--ink); transform: translate(-3px, -3px); }
+.head { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 4px solid var(--ink); font: 700 30px 'Space Grotesk'; color: #fff; }
+.head small { font: 16px var(--mono); opacity: .85; margin-left: auto; }
+.head svg { width: 38px; height: 38px; }
+
+#agent { left: 40px; top: 80px; width: 1150px; height: 790px; }
+#agent .head { background: var(--agent); }
+#json { position: absolute; left: 20px; top: 92px; width: 800px; bottom: 20px; background: var(--dark); border: 3px solid var(--ink); padding: 18px 20px; outline: 6px solid transparent; outline-offset: 3px; }
+#json.sending { outline-color: var(--llm); }
+#json .lbl { position: absolute; top: -15px; left: 16px; font: 700 14px var(--mono); background: var(--paper); border: 3px solid var(--ink); padding: 2px 10px; }
+#json .sent { position: absolute; top: -15px; right: 16px; font: 700 14px var(--mono); background: var(--llm); color: #fff; border: 3px solid var(--ink); padding: 2px 10px; display: none; }
+#json.sending .sent { display: block; }
+#json pre { margin: 0; font: 15px/1.4 var(--mono); color: #e9e6dd; white-space: pre; }
+.k { color: #8fb3ff; } .s { color: #a6e3a1; }
+.new { background: rgba(255,225,74,.2); box-shadow: -8px 0 0 var(--hl); display: inline-block; width: 100%; animation: drop .4s ease; }
+@keyframes drop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+
+#side { position: absolute; left: 842px; top: 92px; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 14px; }
+.card { border: 3px solid var(--ink); padding: 10px 14px; font-size: 19px; line-height: 1.35; animation: drop .4s ease; }
+.card .t { font: 700 13px var(--mono); color: var(--mute); margin-bottom: 6px; display: flex; justify-content: space-between; gap: 6px; }
+.card .run { font: 700 12px var(--mono); background: var(--agent); color: #fff; padding: 1px 7px; }
+.card.you { background: var(--ink); color: var(--paper); }
+.card.you .t { color: #aaa; }
+.card.file { background: var(--paper); font: 14px/1.5 var(--mono); }
+.card.file .t { color: var(--ink); }
+.add { color: #0e8a4f; }
+.card.term { background: var(--dark); color: #e9e6dd; font: 15px/1.5 var(--mono); }
+.card.term .t { color: #aaa; }
+.card.term .okc { color: #5fe0a0; }
+.card.answer { background: #eafff3; box-shadow: 5px 5px 0 var(--ink); }
+
+#llm { left: 1300px; top: 270px; width: 260px; height: 400px; }
+#llm .head { background: var(--llm); }
+#llm .body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: calc(100% - 72px); gap: 22px; }
+#logo { width: 140px; height: 140px; }
+#think { font: 700 20px var(--mono); color: var(--llm); visibility: hidden; }
+#llm.on #think { visibility: visible; }
+
+#wire { position: absolute; left: 1190px; width: 110px; top: 400px; height: 150px; }
+.arrow { position: absolute; left: 12px; right: 12px; height: 0; border-top: 5px dashed #c9c2b2; }
+.arrow::after { content: ""; position: absolute; top: -14px; border: 11px solid transparent; }
+#req { top: 40px; } #req::after { right: -14px; border-left: 16px solid #c9c2b2; }
+#res { top: 110px; } #res::after { left: -14px; border-right: 16px solid #c9c2b2; }
+.arrow.on { border-top-style: solid; border-color: var(--ink); }
+#req.on::after { border-left-color: var(--ink); }
+#res.on::after { border-right-color: var(--ink); }
+#call { position: absolute; top: 58px; width: 100%; text-align: center; font: 700 16px var(--mono); }
+
+/* ---------- build vs. use ---------- */
+#build { padding: 64px 80px; }
+#build h2 { font-size: 68px; }
+.vs { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 46px; }
+.vs .panel > .ttl { font-size: 34px; }
+.vs .in { padding: 26px 30px; font-size: 26px; line-height: 1.45; height: 520px; display: flex; flex-direction: column; gap: 20px; }
+.vs .in p { margin: 0; }
+.vs .who { margin-top: auto; font: 700 20px var(--mono); border-top: 3px solid var(--ink); padding-top: 16px; }
+.quote { background: var(--ink); color: var(--paper); padding: 16px 20px; font-size: 25px; font-style: italic; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.chips span { font: 700 18px var(--mono); border: 3px solid var(--ink); background: var(--paper); padding: 6px 12px; }
+#b-build .ttl { background: var(--agent); }
+#b-use .ttl { background: var(--llm); }
+
+/* ---------- summary ---------- */
+#summary { padding: 64px 80px; }
+.points { margin-top: 50px; display: grid; grid-template-columns: 1fr; gap: 24px; counter-reset: p; max-width: 1300px; }
+.points div { position: relative; background: #fff; border: 3px solid var(--ink); padding: 26px 30px 26px 104px; font-size: 32px; line-height: 1.35; }
+.points div.key { background: var(--hl); box-shadow: 8px 8px 0 var(--ink); }
+.points div::before { counter-increment: p; content: counter(p); position: absolute; left: 0; top: 0; bottom: 0; width: 76px; display: flex; align-items: center; justify-content: center; font: 700 34px var(--mono); background: var(--ink); color: var(--hl); }
+.points code { font-size: .85em; background: rgba(0,0,0,.07); padding: 0 5px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="counter"></div>
+
+  <!-- ================= title ================= -->
+  <section id="title">
+    <h1>The Agent Loop</h1>
+    <p>What is sent to the LLM, and what happens on your computer.</p>
+    <div class="hint">click or → to start</div>
+  </section>
+
+  <!-- ================= Agent = Model + Harness ================= -->
+  <section id="formula">
+    <h2>Agent = <span class="c-llm">Model</span> + <span class="c-agent">Harness</span></h2>
+    <div class="row">
+      <div class="panel" id="model">
+        <div class="ttl">Model</div>
+        <div class="in">
+          <svg viewBox="0 0 100 100"><use href="#star"/></svg>
+          LLM
+        </div>
+      </div>
+      <div class="op">+</div>
+      <div class="panel" id="harness">
+        <div class="ttl">Harness</div>
+        <div class="in">
+          <div class="sub">
+            <h3>Tools</h3>
+            <div class="chip">read_file</div>
+            <div class="chip">edit_file</div>
+            <div class="chip">run_command</div>
+          </div>
+          <div class="sub loop">
+            <h3>Loop</h3>
+            <svg viewBox="0 0 100 100" fill="none" stroke="#121212" stroke-width="7" stroke-linecap="round">
+              <path d="M80 50a30 30 0 1 1-9-21.5"/><path d="M73 14v16H57"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= the loop, step by step ================= -->
+  <section id="scene">
+    <div id="step"></div>
+
+    <div class="block" id="agent">
+      <div class="head">
+        <svg viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="3.5"><rect x="8" y="10" width="32" height="21"/><path d="M3 38h42l-4-7H7z"/></svg>
+        Agent <small>your computer · RegulatoryRadarDemo</small>
+      </div>
+      <div id="json"><span class="lbl">conversation (JSON)</span><span class="sent">sending all of it →</span><pre id="code"></pre></div>
+      <div id="side"></div>
+    </div>
+
+    <div id="wire">
+      <div class="arrow" id="req"></div>
+      <div id="call"></div>
+      <div class="arrow" id="res"></div>
+    </div>
+
+    <div class="block" id="llm">
+      <div class="head">LLM <small>cloud</small></div>
+      <div class="body">
+        <svg id="logo" viewBox="0 0 100 100"><use href="#star"/></svg>
+        <div id="think">thinking…</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= building vs. using an agent ================= -->
+  <section id="build">
+    <h2>"I built an agent." Did you?</h2>
+    <div class="vs">
+      <div class="panel" id="b-build">
+        <div class="ttl">Building an agent</div>
+        <div class="in">
+          <p>Writing the <b>harness</b>: the loop, the tools, and the conversation JSON.</p>
+          <p><b>The harness is code.</b> Libraries help build it:</p>
+          <div class="chips"><span>LangGraph</span><span>OpenAI Agents SDK</span><span>Claude Agent SDK</span></div>
+          <p>Cursor and Claude Code are agents built this way.</p>
+          <div class="who">WHO: AI engineers, a development role</div>
+        </div>
+      </div>
+      <div class="panel" id="b-use">
+        <div class="ttl">Directing an existing agent</div>
+        <div class="in">
+          <div class="quote">"I built an agent that reads my email and summarizes it every morning."</div>
+          <p>Usually means: an <b>existing agent</b> (Claude Code, Cursor…) plus <b>instructions</b>: prompts, skills, rules.</p>
+          <p>The model and the harness were built by someone else.</p>
+          <div class="who">WHO: anyone, no code needed</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= summary ================= -->
+  <section id="summary">
+    <h2>Key points</h2>
+    <div class="points">
+      <div>Tool calling is <b>built into</b> the APIs of all common LLM providers (OpenAI, Anthropic, Google…).</div>
+      <div>The LLM only <b>asks</b> for a tool call. The agent runs it <b>locally</b> and immediately sends the output back.</div>
+      <div>The loop depends on tool calls: tool call → loop again. <b>Text only → done.</b></div>
+      <div class="key">The LLM is <b>stateless</b>: the <b>whole conversation</b> is sent on every turn.</div>
+    </div>
+  </section>
+
+  <!-- shared LLM logo -->
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <g id="star" stroke="#D97757" stroke-width="9" stroke-linecap="round">
+        <line x1="50" y1="8" x2="50" y2="92"/><line x1="8" y1="50" x2="92" y2="50"/>
+        <line x1="20" y1="20" x2="80" y2="80"/><line x1="80" y1="20" x2="20" y2="80"/>
+        <line x1="31" y1="11" x2="69" y2="89"/><line x1="69" y1="11" x2="31" y2="89"/>
+        <line x1="11" y1="31" x2="89" y2="69"/><line x1="11" y1="69" x2="89" y2="31"/>
+      </g>
+    </defs>
+  </svg>
+</div>
+
+<script>
+/* ---------- the conversation, message by message ---------- */
+const SYS = `{
+  "system": "You are a coding assistant.",`;
+const TOOLS = `  "tools": [
+    { "name": "read_file", "description": "Read a file",
+      "args": { "path": "string" } },
+    { "name": "edit_file", "description": "Replace text in a file",
+      "args": { "path": "string", "old": "string", "new": "string" } },
+    { "name": "run_command", "description": "Run a shell command",
+      "args": { "command": "string" } }
+  ],`;
+const OPEN = `  "messages": [`;
+const TAIL = `
+  ]
+}`;
+const MSG = [
+/* 0 */ `    { "role": "user", "content": "Add GET /products/count and a test for it" }`,
+/* 1 */ `    { "role": "assistant", "tool_calls": [
+        { "name": "read_file", "args": { "path": "app/main.py" } },
+        { "name": "read_file", "args": { "path": "tests/test_api.py" } } ] }`,
+/* 2 */ `    { "role": "tool", "content": "<the 98 lines of app/main.py>" }`,
+/* 3 */ `    { "role": "tool", "content": "<the 51 lines of tests/test_api.py>" }`,
+/* 4 */ `    { "role": "assistant", "tool_calls": [
+        { "name": "edit_file", "args": { "path": "app/main.py", … } },
+        { "name": "edit_file", "args": { "path": "tests/test_api.py", … } } ] }`,
+/* 5 */ `    { "role": "tool", "content": "OK, app/main.py edited" }`,
+/* 6 */ `    { "role": "tool", "content": "OK, tests/test_api.py edited" }`,
+/* 7 */ `    { "role": "assistant", "tool_calls": [
+        { "name": "run_command", "args": { "command": "pytest -q" } } ] }`,
+/* 8 */ `    { "role": "tool", "content": "7 passed in 0.4s" }`,
+/* 9 */ `    { "role": "assistant",
+      "content": "Done! Added the endpoint and a test. All 7 tests pass." }`
+];
+
+/* ---------- cards: what happens on the computer ---------- */
+const YOU = `<div class="card you"><div class="t">YOU</div>Add GET /products/count and a test for it</div>`;
+const card = (file, tool, body) => `<div class="card file"><div class="t"><span>${file}</span><span class="run">${tool}</span></div>${body}</div>`;
+const READ_MAIN = card("app/main.py", "read_file", "98 lines");
+const READ_TEST = card("tests/test_api.py", "read_file", "51 lines");
+const EDIT_MAIN = card("app/main.py", "edit_file",
+  `<span class="add">+ @app.get("/products/count")<br>+ def products_count():<br>+   return {"count": …}</span>`);
+const EDIT_TEST = card("tests/test_api.py", "edit_file",
+  `<span class="add">+ def test_products_count():<br>+   … == {"count": 6}</span>`);
+const TERM = `<div class="card term"><div class="t"><span>terminal</span><span class="run">run_command</span></div>$ pytest -q<br><span class="okc">7 passed in 0.4s</span></div>`;
+const ANSWER = `<div class="card answer"><div class="t">AGENT → YOU</div>Done! Added the endpoint and a test. All 7 tests pass.</div>`;
+
+/* ---------- steps ----------
+   msgs:  how many messages are in the JSON
+   add:   how many of the last messages are new (highlighted)
+   on:    which block is active ("agent" / "llm")
+   arrow: "req" (agent → LLM) or "res" (LLM → agent)
+   side:  cards shown next to the JSON                       */
+const R = [YOU, READ_MAIN, READ_TEST], E = [YOU, EDIT_MAIN, EDIT_TEST];
+const STEPS = [
+  { view: "title" },
+  { view: "formula" },
+  { label: "the agent",                    msgs: 0, on: "agent", side: [] },
+  { label: "tools: name + description + args", msgs: 0, tools: true, on: "agent", side: [] },
+  { label: "you ask",                      msgs: 1, add: 1, on: "agent", side: [YOU] },
+  { label: "send to the LLM",              msgs: 1, on: "llm", arrow: "req", call: 1, side: [YOU] },
+  { label: "LLM replies: 2 tool calls",    msgs: 2, add: 1, arrow: "res", call: 1, side: [YOU] },
+  { label: "agent runs both tools",        msgs: 2, on: "agent", side: R },
+  { label: "2 results are added",          msgs: 4, add: 2, on: "agent", side: R },
+  { label: "send to the LLM, again",       msgs: 4, on: "llm", arrow: "req", call: 2, side: R },
+  { label: "LLM replies: 2 tool calls",    msgs: 5, add: 1, arrow: "res", call: 2, side: R },
+  { label: "agent runs both tools",        msgs: 5, on: "agent", side: E },
+  { label: "2 results are added",          msgs: 7, add: 2, on: "agent", side: E },
+  { label: "send to the LLM, again",       msgs: 7, on: "llm", arrow: "req", call: 3, side: E },
+  { label: "LLM replies: 1 tool call",     msgs: 8, add: 1, arrow: "res", call: 3, side: E },
+  { label: "agent runs the command",       msgs: 8, on: "agent", side: [...E, TERM] },
+  { label: "result is added",              msgs: 9, add: 1, on: "agent", side: [...E, TERM] },
+  { label: "send to the LLM, again",       msgs: 9, on: "llm", arrow: "req", call: 4, side: [...E, TERM] },
+  { label: "LLM replies: text, no tool",   msgs: 10, add: 1, arrow: "res", call: 4, side: [...E, TERM] },
+  { label: "no tool call → done",          msgs: 10, on: "agent", side: [YOU, TERM, ANSWER] },
+  { view: "build" },
+  { view: "summary" },
+];
+
+/* ---------- rendering ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const STR = /"((?:[^"\\]|\\.)*)"/g;
+// keys blue, string values green
+const color = s => esc(s).replace(STR, (m, v, i, all) =>
+  /^\s*:/.test(all.slice(i + m.length)) ? `<span class="k">${m}</span>` : `<span class="s">${m}</span>`);
+
+function json(n, add = 0, hlTools = false) {
+  const body = MSG.slice(0, n).map((m, i) => {
+    const txt = color(m) + (i < n - 1 ? "," : "");
+    return i >= n - add ? `<span class="new">${txt}</span>` : txt;
+  }).join("\n");
+  const tools = hlTools ? `<span class="new">${color(TOOLS)}</span>` : color(TOOLS);
+  return color(SYS) + "\n" + tools + "\n" + color(OPEN) + (n ? "\n" + body : "") + TAIL;
+}
+
+let cur = 0;
+function go(n) {
+  cur = Math.max(0, Math.min(STEPS.length - 1, n));
+  const s = STEPS[cur];
+  const view = s.view || "scene";
+  document.querySelectorAll("section").forEach(el => el.style.display = el.id === view ? (view === "title" ? "flex" : "block") : "none");
+  $("counter").textContent = `${cur} / ${STEPS.length - 1}`;
+  history.replaceState(null, "", "#" + cur);
+  if (s.view) return;
+
+  $("step").textContent = s.label;
+  $("code").innerHTML = json(s.msgs, s.add, s.tools);
+  $("json").classList.toggle("sending", s.arrow === "req");
+  $("agent").classList.toggle("on", s.on === "agent");
+  $("llm").classList.toggle("on", s.on === "llm");
+  $("req").classList.toggle("on", s.arrow === "req");
+  $("res").classList.toggle("on", s.arrow === "res");
+  $("call").textContent = s.call ? `call #${s.call}` : "";
+  $("side").innerHTML = s.side.join("");
+}
+
+function fit() {
+  const k = Math.min(innerWidth / 1600, innerHeight / 900);
+  $("stage").style.transform = `translate(-50%, -50%) scale(${k})`;
+}
+addEventListener("resize", fit);
+addEventListener("keydown", e => {
+  if (["ArrowRight", "PageDown", " ", "Enter", "ArrowDown"].includes(e.key)) { e.preventDefault(); go(cur + 1); }
+  else if (["ArrowLeft", "PageUp", "Backspace", "ArrowUp"].includes(e.key)) { e.preventDefault(); go(cur - 1); }
+  else if (e.key === "Home") go(0);
+  else if (e.key === "End") go(STEPS.length - 1);
+  else if (e.key === "f" || e.key === "F") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+});
+$("stage").addEventListener("click", e => {
+  // click the left edge to go back, anywhere else to go forward
+  const r = $("stage").getBoundingClientRect();
+  go((e.clientX - r.left) / r.width < 0.12 ? cur - 1 : cur + 1);
+});
+fit();
+go(parseInt(location.hash.slice(1), 10) || 0);
+</script>
+</body>
+</html>
