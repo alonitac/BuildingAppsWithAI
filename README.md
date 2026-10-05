@@ -27,7 +27,7 @@ Work hard, and have fun 😊
 ## Studying Guide
 
 <table width="100%">
-<tr><th>#</th><th>Topic</th><th>Tutorial</th><th>Resources</th></tr>
+<tr><th>#</th><th>Topic</th><th>Tutorial</th><th colspan="3">Resources</th></tr>
 
 <tr>
  <td align="center" colspan="8"><br><b>Session I: <a href="https://github.com/alonitac/RegulatoryRadarDemo">Regulatory Radar Demo App</a></b><br><br></td>
