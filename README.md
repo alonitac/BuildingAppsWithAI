@@ -27,7 +27,7 @@ Work hard, and have fun 😊
 ## Studying Guide
 
 <table width="100%">
-<tr><th>#</th><th>Topic</th><th>Tutorial</th><th colspan="3"><th>Resources</th></tr>
+<tr><th>#</th><th>Topic</th><th>Tutorial</th><th>Resources</th></tr>
 
 <tr>
  <td align="center" colspan="8"><br><b>Session I: <a href="https://github.com/alonitac/RegulatoryRadarDemo">Regulatory Radar Demo App</a></b><br><br></td>
@@ -44,6 +44,7 @@ Work hard, and have fun 😊
  <td>2</td>
  <td>Coding Agents</td>
  <td><a target="_blank" href="tutorials/intro_to_ai_code_assistents.md">Coding Agents</a></td>
+ <td align="center"></td>
  <td align="center"></td>
  <td align="center"><a target="_blank" href="tutorials/intro_to_ai_code_assistents.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
 </tr>
