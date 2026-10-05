@@ -5,10 +5,17 @@ It serves FDA/EU regulatory updates, openFDA data (510(k) clearances, recalls), 
 
 ## Get the app code
 
-Open a terminal (Windows: PowerShell) and clone the repository:
+The app lives in a GitHub **template**. Create your own copy under your GitHub account first. Clone that copy,
+
+1. Open [https://github.com/alonitac/RegulatoryRadarDemo](https://github.com/alonitac/RegulatoryRadarDemo) (sign in to GitHub if you aren't already).
+2. Click **Use this template** (green button, top right), then **Create a new repository**.
+3. Keep the name `RegulatoryRadarDemo`. Set **Owner** to your GitHub username. Click **Create repository**.
+4. On *your* new repo page, click the green **Code** button and copy the HTTPS URL. It looks like `https://github.com/<your-username>/RegulatoryRadarDemo.git`.
+
+Open a terminal (Windows: PowerShell) and clone **your** copy. Replace `<your-username>` with your GitHub username:
 
 ```bash
-git clone https://github.com/alonitac/RegulatoryRadarDemo.git
+git clone https://github.com/<your-username>/RegulatoryRadarDemo.git
 ```
 
 Open it in Cursor: **File > Open Folder...** and choose `RegulatoryRadarDemo`.
