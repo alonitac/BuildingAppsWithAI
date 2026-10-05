@@ -20,9 +20,6 @@ Work hard, and have fun 😊
 - **Build without coding** - APIs, UIs, and AI Agents.
 - **Learn by building** - 5 sessions, 5 demo apps.
 
-## Onboarding
-
-
 
 ## Studying Guide
 
@@ -44,7 +41,7 @@ Work hard, and have fun 😊
  <td>2</td>
  <td>Coding Agents</td>
  <td><a target="_blank" href="tutorials/intro_to_ai_code_assistents.md">Coding Agents</a></td>
- <td align="center"></td>
+ <td align="center"><a target="_blank" href="https://alonitac.github.io/DevOpsTheHardWay/slides/agentic_loop.html"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/slides.png" /></a></td>
  <td align="center"></td>
  <td align="center"><a target="_blank" href="tutorials/intro_to_ai_code_assistents.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
 </tr>
