@@ -376,6 +376,12 @@ You already installed Matt's skills in the `/research` section.
 
 #### Step I: setup
 
+Install the skills by:
+
+```bash
+npx skills add mattpocock/skills -a cursor
+```
+
 New chat, **Agent** mode:
 
 > /setup-matt-pocock-skills
