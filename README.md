@@ -41,9 +41,41 @@ Work hard, and have fun 😊
  <td>2</td>
  <td>Coding Agents</td>
  <td><a target="_blank" href="tutorials/intro_to_ai_code_assistents.md">Coding Agents</a></td>
- <td align="center"><a target="_blank" href="https://alonitac.github.io/DevOpsTheHardWay/slides/agentic_loop.html"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/slides.png" /></a></td>
+ <td align="center"><a target="_blank" href="https://exit-zero-academy.github.io/DevOpsTheHardWayAssets/slides/agentic_loop.html"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/slides.png" /></a></td>
  <td align="center"></td>
  <td align="center"><a target="_blank" href="tutorials/intro_to_ai_code_assistents.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
 </tr>
+<tr>
+ <td>3</td>
+ <td>Git and GitHub</td>
+ <td><a target="_blank" href="tutorials/sdlc_with_git.md">SDLC with Git</a></td>
+ <td align="center"></td>
+ <td align="center"><a target="_blank" href="https://exit-zero-academy.github.io/DevOpsTheHardWayAssets/multichoice-questions/sdlc_with_git.html"><img src="https://exit-zero-academy.github.io/DevOpsTheHardWayAssets/img/qm.png" /></a></td>
+ <td align="center"><a target="_blank" href="tutorials/sdlc_with_git.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
+</tr>
+<tr>
+ <td>4</td>
+ <td>CI/CD</td>
+ <td><a target="_blank" href="tutorials/ci_cd_brief.md">CI/CD in Brief</a></td>
+ <td align="center"></td>
+ <td align="center"></td>
+ <td align="center"><a target="_blank" href="tutorials/ci_cd_brief.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
+</tr>
 
+<tr>
+ <td>5</td>
+ <td>Skills</td>
+ <td><a target="_blank" href="tutorials/writing_skills.md">Writing Skills</a></td>
+ <td align="center"></td>
+ <td align="center"></td>
+ <td align="center"><a target="_blank" href="tutorials/writing_skills.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
+</tr>
+<tr>
+ <td>6</td>
+ <td>MCP</td>
+ <td><a target="_blank" href="tutorials/intro_to_mcp.md">Intro to MCP</a></td>
+ <td align="center"><a target="_blank" href="https://exit-zero-academy.github.io/DevOpsTheHardWayAssets/slides/mcp.html"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/slides.png" /></a></td>
+ <td align="center"></td>
+ <td align="center"><a target="_blank" href="tutorials/intro_to_mcp.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
+</tr>
 </table>
