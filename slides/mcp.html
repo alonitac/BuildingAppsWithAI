@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP: an API for Agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #F3EEE3;
+  --ink: #121212;
+  --agent: #2B59FF;
+  --llm: #D97757;
+  --mcp: #7A3CFF;
+  --api: #1F8A5B;
+  --hl: #FFE14A;
+  --bad: #E5484D;
+  --mute: #8a8473;
+  --dark: #17161b;
+  --mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #0d0d0d; overflow: hidden; }
+body { font-family: 'Space Grotesk', system-ui, sans-serif; color: var(--ink); }
+#stage {
+  position: absolute; left: 50%; top: 50%; width: 1600px; height: 900px;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(rgba(18,18,18,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18,18,18,.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  overflow: hidden; user-select: none; cursor: pointer;
+}
+section { position: absolute; inset: 0; display: none; padding: 64px 80px; }
+#counter { position: absolute; right: 30px; top: 30px; font: 15px var(--mono); color: var(--mute); z-index: 2; }
+h2 { font-size: 68px; margin: 0; letter-spacing: -.03em; }
+h2 small { display: block; font-size: 30px; letter-spacing: 0; color: #555; margin-top: 10px; font-weight: 500; }
+.c-agent { color: var(--agent); } .c-llm { color: var(--llm); } .c-mcp { color: var(--mcp); } .c-api { color: var(--api); }
+.hide { visibility: hidden; }
+.gone { display: none !important; }
+.pop { animation: drop .4s ease; }
+@keyframes drop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.step { position: absolute; top: 26px; left: 40px; font: 700 20px var(--mono); }
+
+.panel { background: #fff; border: 4px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); }
+.panel > .ttl { padding: 14px 22px; border-bottom: 4px solid var(--ink); font: 700 30px 'Space Grotesk'; color: #fff; display: flex; align-items: center; gap: 12px; }
+.panel > .ttl small { font: 16px var(--mono); opacity: .85; margin-left: auto; }
+.term { background: var(--dark); color: #e9e6dd; border: 3px solid var(--ink); padding: 16px 20px; font: 18px/1.5 var(--mono); white-space: pre; }
+.term .dim { color: #8b8778; } .term .ok { color: #5fe0a0; } .term .err { color: #ff8a8d; }
+.k { color: #8fb3ff; } .s { color: #a6e3a1; }
+.caption { position: absolute; left: 80px; right: 80px; bottom: 50px; background: var(--hl); border: 3px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); padding: 20px 28px; font-size: 30px; line-height: 1.35; }
+
+/* ---------- title ---------- */
+#title { flex-direction: column; justify-content: center; padding: 0 120px; }
+#title h1 { font-size: 140px; margin: 0; letter-spacing: -.04em; line-height: 1; }
+#title p { font-size: 34px; margin: 30px 0 0; color: #444; }
+#title .hint { position: absolute; bottom: 60px; left: 120px; font: 18px var(--mono); color: var(--mute); }
+
+/* ---------- 1. you already know APIs ---------- */
+#api .row { display: flex; align-items: center; gap: 0; margin-top: 60px; }
+#api .box { width: 420px; }
+#api .box .in { padding: 26px; font-size: 24px; line-height: 1.4; height: 170px; }
+#app-box .ttl { background: var(--agent); }
+#fda-box .ttl { background: var(--api); }
+#api .wire { flex: 1; position: relative; height: 140px; }
+.arrow { position: absolute; left: 20px; right: 20px; height: 0; border-top: 5px solid var(--ink); }
+.arrow::after { content: ""; position: absolute; top: -14px; border: 11px solid transparent; }
+.arrow.r::after { right: -14px; border-left: 16px solid var(--ink); }
+.arrow.l::after { left: -14px; border-right: 16px solid var(--ink); }
+#api .wire .arrow.r { top: 40px; } #api .wire .arrow.l { top: 100px; }
+#api .wire .lbl { position: absolute; width: 100%; text-align: center; font: 700 17px var(--mono); }
+#api .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; }
+
+/* ---------- 2. the agent, without help ---------- */
+#nomcp { padding: 0; }
+#nomcp .ask { position: absolute; left: 40px; top: 80px; right: 40px; background: var(--ink); color: var(--paper); border: 3px solid var(--ink); padding: 18px 24px; font-size: 30px; }
+#nomcp .ask .t { font: 700 14px var(--mono); color: #aaa; margin-bottom: 6px; }
+#feed { position: absolute; left: 40px; top: 200px; right: 40px; bottom: 30px; display: flex; flex-direction: column; gap: 14px; }
+.card { border: 3px solid var(--ink); padding: 12px 16px; font-size: 21px; line-height: 1.35; background: #fff; }
+.card .t { font: 700 14px var(--mono); color: var(--mute); margin-bottom: 6px; display: flex; gap: 10px; align-items: center; }
+.card .t .run { background: var(--agent); color: #fff; padding: 1px 8px; }
+.card.termc { background: var(--dark); color: #e9e6dd; font: 17px/1.5 var(--mono); white-space: pre-wrap; }
+.card.termc .t { color: #aaa; }
+.card.termc .err { color: #ff8a8d; } .card.termc .ok { color: #5fe0a0; } .card.termc .dim { color: #8b8778; }
+.card.agentsay { background: #e8eeff; }
+.card.you { background: var(--ink); color: var(--paper); }
+.card.you .t { color: #aaa; }
+.card.answer { background: #eafff3; box-shadow: 5px 5px 0 var(--ink); }
+.badge { display: inline-block; font: 700 15px var(--mono); background: var(--bad); color: #fff; padding: 2px 10px; margin-left: 10px; border: 2px solid var(--ink); }
+
+/* ---------- 3. why is it hard ---------- */
+#why .one { position: absolute; left: 120px; right: 120px; top: 50%; transform: translateY(-50%); font: 700 72px/1.2 'Space Grotesk'; letter-spacing: -.02em; }
+
+/* ---------- 4. an API for agents ---------- */
+#menu .wrap { position: relative; display: flex; align-items: center; margin-top: 60px; height: 460px; }
+#m-agent { width: 300px; }
+#m-agent .ttl { background: var(--agent); }
+#m-agent .in { padding: 40px 26px; font: 700 36px 'Space Grotesk'; text-align: center; }
+#menu .wrap > .arrow { position: relative; flex: 0 0 170px; left: 0; right: 0; margin: 0 30px; }
+#menu-card { flex: 1; }
+#menu-card .ttl { background: var(--mcp); }
+.item { padding: 20px 26px; border-bottom: 3px dashed #d8d1c0; font-size: 26px; }
+.item:last-child { border-bottom: 0; }
+.item .n { font: 700 26px var(--mono); margin-right: 14px; }
+.caption.mcp { background: var(--mcp); color: #fff; }
+
+/* ---------- 5/7. sequence diagrams ---------- */
+.seq { padding: 0; }
+.lanes { position: absolute; left: 40px; right: 40px; top: 76px; bottom: 20px; }
+.lane { position: absolute; top: 0; bottom: 0; width: 300px; margin-left: -150px; }
+.lane .hd { border: 4px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); color: #fff; padding: 10px 14px; font: 700 26px 'Space Grotesk'; text-align: center; position: relative; z-index: 1; }
+.lane .hd small { display: block; font: 14px var(--mono); opacity: .9; }
+.lane .life { position: absolute; left: 50%; top: 80px; bottom: 0; border-left: 4px dashed #c9c2b2; }
+.lane.faded { opacity: .25; }
+.lane.l-llm .hd { background: var(--llm); }
+.lane.l-agent .hd { background: var(--agent); }
+.lane.l-mcp .hd { background: var(--mcp); }
+.lane.l-api .hd { background: var(--api); }
+.rows { position: absolute; left: 0; right: 0; top: 112px; bottom: 0; display: flex; flex-direction: column; }
+.mrow { position: relative; height: 92px; flex: none; transition: opacity .3s; }
+.mrow.old { opacity: .35; }
+.mrow .ar { position: absolute; top: 38px; height: 0; border-top: 5px solid var(--ink); }
+.mrow .ar::after { content: ""; position: absolute; top: -14px; border: 11px solid transparent; }
+.mrow .ar.r::after { right: -14px; border-left: 16px solid var(--ink); }
+.mrow .ar.l::after { left: -14px; border-right: 16px solid var(--ink); }
+.mrow .tt { position: absolute; top: 4px; font: 700 21px 'Space Grotesk'; white-space: nowrap; text-align: center; transform: translateX(-50%); }
+.mrow .dt { position: absolute; top: 50px; font: 15px var(--mono); white-space: nowrap; background: var(--dark); color: #e9e6dd; padding: 4px 10px; border: 2px solid var(--ink); transform: translateX(-50%); }
+.mrow .dt .hl { background: var(--hl); color: var(--ink); padding: 0 4px; font-weight: 700; }
+.mrow .note { position: absolute; top: 14px; transform: translateX(-50%); background: var(--ink); color: var(--paper); border: 3px solid var(--ink); padding: 10px 18px; font-size: 22px; white-space: nowrap; }
+.mrow .note.ans { background: #eafff3; color: var(--ink); box-shadow: 5px 5px 0 var(--ink); }
+.mrow.cur .tt { background: var(--hl); padding: 0 8px; }
+
+/* ---------- 6. sound familiar? ---------- */
+#familiar .wrap { display: grid; grid-template-columns: 960px 1fr; gap: 44px; margin-top: 36px; }
+#familiar pre { margin: 0; background: var(--dark); border: 3px solid var(--ink); padding: 20px 22px; font: 17px/1.45 var(--mono); color: #e9e6dd; white-space: pre; box-shadow: 8px 8px 0 var(--ink); }
+#familiar .new { background: rgba(122,60,255,.35); box-shadow: -8px 0 0 var(--mcp); display: inline-block; width: 100%; }
+#familiar .side { display: flex; flex-direction: column; gap: 22px; font-size: 27px; line-height: 1.4; }
+#familiar .side div { background: #fff; border: 3px solid var(--ink); padding: 18px 22px; }
+#familiar .side .key { background: var(--hl); box-shadow: 8px 8px 0 var(--ink); }
+
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="counter"></div>
+
+  <!-- ================= title ================= -->
+  <section id="title">
+    <h1>MCP: an API<br>for agents</h1>
+    <p>How does an agent talk to GitHub (or any other system)?</p>
+    <div class="hint">click or → to start</div>
+  </section>
+
+  <!-- ================= 1. you already know APIs ================= -->
+  <section id="api">
+    <h2>You already know APIs</h2>
+    <div class="row">
+      <div class="panel box" id="app-box">
+        <div class="ttl">A program <small>e.g. a team dashboard</small></div>
+        <div class="in">A developer read GitHub's API docs <b>once</b>, and wrote the exact request into the code.</div>
+      </div>
+      <div class="wire">
+        <div class="arrow r" data-at="1"></div>
+        <div class="lbl" style="top:4px" data-at="1">request</div>
+        <div class="arrow l" data-at="2"></div>
+        <div class="lbl" style="top:110px" data-at="2">response</div>
+      </div>
+      <div class="panel box" id="fda-box">
+        <div class="ttl">GitHub API <small>api.github.com</small></div>
+        <div class="in">Hundreds of endpoints. All described in <b>docs written for developers</b>.</div>
+      </div>
+    </div>
+    <div class="cards">
+      <div class="term" data-at="1"><span class="dim"># "list my open pull requests"</span>
+GET /repos/you/RegulatoryRadarDemo/pulls
+    ?state=open
+<span class="dim">Authorization: Bearer &lt;token&gt;</span></div>
+      <div class="term" data-at="2"><span class="dim"># response</span>
+<span class="ok">200 OK</span>
+[{"number": 3, "title": "Add /version endpoint",
+  "state": "open", "user": {…}, "head": {…}, … }, …]
+<span class="dim"># ~350 lines of JSON for every PR</span></div>
+    </div>
+    <div class="caption" data-at="3">Same request every time. The <b>developer</b> did the hard part (reading the docs) <b>once</b>.</div>
+  </section>
+
+  <!-- ================= 2. the agent, without help ================= -->
+  <section id="nomcp">
+    <div class="step"></div>
+    <div class="ask"><div class="t">YOU → AGENT</div>List my open pull requests in RegulatoryRadarDemo.</div>
+    <div id="feed" data-window="5">
+      <div class="card" data-at="1"><div class="t"><span class="run">web search</span></div>"github api list pull requests" → 10 results</div>
+      <div class="card" data-at="2"><div class="t"><span class="run">read web page</span> docs.github.com/rest/pulls</div>GitHub's pull requests API docs: endpoints, parameters, examples… <b>thousands of lines</b></div>
+      <div class="card termc" data-at="3"><div class="t"><span class="run">terminal</span></div>$ curl https://api.github.com/repos/you/RegulatoryRadarDemo/pulls?state=open
+<span class="err">404 {"message": "Not Found"}</span>   <span class="dim">← but the repo exists?!</span></div>
+      <div class="card agentsay" data-at="4"><div class="t">AGENT → YOU</div>The repo may be private. I need a GitHub token. Please paste it here.</div>
+      <div class="card you" data-at="5"><div class="t">YOU → AGENT</div>ghp_8fK2x…<span class="badge">a secret in the chat!</span></div>
+      <div class="card termc" data-at="6"><div class="t"><span class="run">terminal</span></div>$ curl -H "Authorization: Bearer ghp_8fK2x…" …/pulls?state=open
+<span class="ok">200</span> <span class="dim">[{"url": …, "id": …, "node_id": …, "user": {…}, "head": {…}, "base": {…}, … 700 lines of JSON …]</span></div>
+      <div class="card answer" data-at="7"><div class="t">AGENT → YOU</div>You have 2 open PRs: <b>#3 Add /version endpoint</b> and <b>#4 Fix pulse-dr product codes</b>.</div>
+    </div>
+  </section>
+
+  <!-- ================= 3. why is it hard ================= -->
+  <section id="why">
+    <div class="one">It worked. But it was slow, wasted tokens, and guessed a lot.</div>
+  </section>
+
+  <!-- ================= 4. an API for agents ================= -->
+  <section id="menu">
+    <h2>What if GitHub had an API <span class="c-mcp">for agents</span>?</h2>
+    <div class="wrap">
+      <div class="panel" id="m-agent"><div class="ttl">Agent</div><div class="in">Cursor</div></div>
+      <div class="arrow r"></div>
+      <div class="panel" id="menu-card">
+        <div class="ttl">GitHub, for agents</div>
+        <div class="item" data-at="1"><span class="n">list_pull_requests</span> List the pull requests of a repo.</div>
+        <div class="item" data-at="1"><span class="n">create_pull_request</span> Open a pull request from a branch.</div>
+        <div class="item" data-at="1"><span class="n">get_job_logs</span> Get the logs of a CI job, to see why it failed.</div>
+        <div class="item" data-at="1"><span class="n">…</span> 40 more</div>
+      </div>
+    </div>
+    <div class="caption mcp" data-at="2"><b>This is MCP</b> (Model Context Protocol): a standard way to offer an API for agents.</div>
+  </section>
+
+  <!-- ================= 5. the protocol: connecting ================= -->
+  <section id="connect" class="seq">
+    <div class="step"></div>
+    <div class="lanes"></div>
+  </section>
+
+  <!-- ================= 6. sound familiar? ================= -->
+  <section id="familiar">
+    <h2>Sound familiar?</h2>
+    <div class="wrap">
+      <pre id="fam-code"></pre>
+      <div class="side">
+        <div data-at="0">Remember the agent loop? This is what Cursor sends to the LLM.</div>
+        <div data-at="1">Cursor adds GitHub's tools to the <b>same list</b> as its own tools.</div>
+        <div class="key" data-at="2">For the LLM, GitHub is <b>just more tools</b>. It doesn't know (or care) that they come from MCP.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 7. the protocol: a tool call ================= -->
+  <section id="call" class="seq">
+    <div class="step"></div>
+    <div class="lanes"></div>
+  </section>
+
+
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/* ---------- sequence diagrams ----------
+   lanes: x positions (center) inside .lanes (width 1520)
+   rows:  { at, from, to, t: title, d: detail }   from === to → a note on that lane */
+const X = { llm: 190, agent: 570, mcp: 950, api: 1330 };
+const LANES = [
+  ["llm",   "LLM",                "cloud"],
+  ["agent", "Cursor",             "the agent · your computer"],
+  ["mcp",   "GitHub MCP server",  "API for agents"],
+  ["api",   "GitHub API",         "regular API"],
+];
+
+const CONNECT = {
+  faded: ["llm", "api"],
+  rows: [
+    { at: 1, from: "agent", to: "mcp", t: "Hi, I'm Cursor",                     d: `{"method": "initialize", …}` },
+    { at: 2, from: "mcp", to: "agent", t: "Hi, I'm GitHub's MCP server",         d: `{"serverInfo": {"name": "github", "version": …}, …}` },
+    { at: 3, from: "agent", to: "mcp", t: "What can you do?",                   d: `{"method": "<span class="hl">tools/list</span>"}` },
+    { at: 4, from: "mcp", to: "agent", t: "The menu! (MCP calls each item a tool)", d: `{"<span class="hl">tools</span>": [{"name": "list_pull_requests", "description": "List the pull requests of…", "inputSchema": …}, …]}` },
+  ],
+  labels: ["Cursor starts, and connects to the MCP server", "1. Cursor says hello", "2. the server introduces itself", "3. Cursor asks for the menu", "4. the menu items are called tools"],
+};
+
+const CALL = {
+  faded: [],
+  rows: [
+    { at: 1, from: "agent", to: "llm",  t: "conversation + all the tools",      d: `"List my open pull requests"` },
+    { at: 2, from: "llm", to: "agent",  t: "tool call",                          d: `list_pull_requests(repo: "RegulatoryRadarDemo", state: "open")` },
+    { at: 3, from: "agent", to: "mcp",  t: "it's a GitHub tool → send it to the server", d: `{"method": "<span class="hl">tools/call</span>", "params": {"name": "list_pull_requests", …}}` },
+    { at: 4, from: "mcp", to: "api",    t: "a regular API call, with your token", d: `GET /repos/you/RegulatoryRadarDemo/pulls?state=open` },
+    { at: 5, from: "api", to: "mcp",    t: "700 lines of JSON",                  d: `200 OK` },
+    { at: 6, from: "mcp", to: "agent",  t: "a short answer",                     d: `#3 Add /version endpoint · #4 Fix pulse-dr product codes` },
+    { at: 7, from: "agent", to: "llm",  t: "tool result added → send again",     d: `{"role": "tool", "content": "#3 Add /version endpoint · #4…"}` },
+    { at: 8, from: "llm", to: "agent",  t: "text, no tool call → done",          d: `"You have 2 open PRs: #3 Add /version endpoint, and #4…"` },
+  ],
+  labels: ["you ask", "Cursor sends to the LLM, like always", "the LLM asks for a tool, like always", "Cursor: this tool belongs to the GitHub server", "the server calls the regular GitHub API", "GitHub answers, like any API", "the server returns a short answer", "Cursor adds it to the conversation", "the LLM answers. The agent loop didn't change."],
+};
+
+function buildSeq(sectionId, spec) {
+  const lanes = document.querySelector(`#${sectionId} .lanes`);
+  let html = LANES.map(([k, name, sub]) =>
+    `<div class="lane l-${k}${spec.faded.includes(k) ? " faded" : ""}" style="left:${X[k]}px"><div class="hd">${name}<small>${sub}</small></div><div class="life"></div></div>`).join("");
+  html += `<div class="rows" data-window="7">` + spec.rows.map(r => {
+    const a = X[r.from], b = X[r.to], left = Math.min(a, b) + 14, w = Math.abs(a - b) - 28, mid = (a + b) / 2;
+    return `<div class="mrow" data-at="${r.at}">
+      <div class="ar ${b > a ? "r" : "l"}" style="left:${left}px;width:${w}px"></div>
+      <div class="tt" style="left:${mid}px">${r.t}</div>
+      <div class="dt" style="left:${mid}px">${r.d}</div></div>`;
+  }).join("") + `</div>`;
+  lanes.innerHTML = html;
+}
+buildSeq("connect", CONNECT);
+buildSeq("call", CALL);
+
+/* ---------- sound familiar? ---------- */
+const STR = /"((?:[^"\\]|\\.)*)"/g;
+const color = s => esc(s).replace(STR, (m, v, i, all) =>
+  /^\s*:/.test(all.slice(i + m.length)) ? `<span class="k">${m}</span>` : `<span class="s">${m}</span>`);
+const FAM_TOP = `{
+  "system": "You are a coding assistant.",
+  "tools": [
+    { "name": "read_file",   "description": "Read a file" },
+    { "name": "edit_file",   "description": "Replace text in a file" },
+    { "name": "run_command", "description": "Run a shell command" },`;
+const FAM_MCP = `    { "name": "list_pull_requests",  "description": "List the pull requests of a repo…" },
+    { "name": "create_pull_request", "description": "Open a pull request…" },
+    { "name": "get_job_logs",        "description": "Get the logs of a CI job…" },
+    …`;
+const FAM_END = `  ],
+  "messages": [
+    { "role": "user", "content": "List my open pull requests" }
+  ]
+}`;
+function familiar(at) {
+  const mcp = at >= 1 ? `<span class="new pop">${color(FAM_MCP)}</span>\n` : "";
+  $("fam-code").innerHTML = color(FAM_TOP) + "\n" + mcp + color(FAM_END);
+}
+
+/* ---------- the agent, without help ---------- */
+const NOMCP = [
+  { label: "you ask the agent" },
+  { label: "1. search: how does GitHub's API work?" },
+  { label: "2. read the docs" },
+  { label: "3. guess the request, and try" },
+  { label: "4. it needs a token…" },
+  { label: "5. …so you paste it in the chat" },
+  { label: "6. try again, and dig through the JSON" },
+  { label: "7. finally, an answer" },
+];
+
+/* ---------- steps ---------- */
+const STEPS = [
+  { view: "title" },
+  ...[0, 1, 2, 3].map(at => ({ view: "api", at })),
+  ...NOMCP.map((s, at) => ({ view: "nomcp", at, ...s })),
+  { view: "why" },
+  ...[0, 1, 2].map(at => ({ view: "menu", at })),
+  ...CONNECT.labels.map((label, at) => ({ view: "connect", at, label })),
+  ...[0, 1, 2].map(at => ({ view: "familiar", at })),
+  ...CALL.labels.map((label, at) => ({ view: "call", at, label })),
+];
+
+let cur = 0;
+function go(n) {
+  const prev = STEPS[cur];
+  cur = Math.max(0, Math.min(STEPS.length - 1, n));
+  const s = STEPS[cur], at = s.at ?? 99;
+  document.querySelectorAll("section").forEach(el => el.style.display = el.id === s.view ? (s.view === "title" ? "flex" : "block") : "none");
+  $("counter").textContent = `${cur} / ${STEPS.length - 1}`;
+  history.replaceState(null, "", "#" + cur);
+
+  const sec = $(s.view);
+  // reveal: elements with data-at appear from that sub-step on; the newest one pops in
+  sec.querySelectorAll("[data-at]").forEach(el => {
+    const k = +el.dataset.at;
+    el.classList.toggle("hide", k > at);
+    el.classList.toggle("cur", k === at);
+    el.classList.toggle("old", k < at);
+    el.classList.toggle("pop", k === at && prev && prev.view === s.view && prev.at < at);
+  });
+  // windows: keep only the last N visible items
+  sec.querySelectorAll("[data-window]").forEach(w => {
+    const vis = [...w.children].filter(c => !c.classList.contains("hide"));
+    w.querySelectorAll(":scope > *").forEach(c => c.classList.remove("gone"));
+    vis.slice(0, Math.max(0, vis.length - +w.dataset.window)).forEach(c => c.classList.add("gone"));
+    [...w.children].filter(c => c.classList.contains("hide")).forEach(c => c.classList.add("gone"));
+  });
+  const step = sec.querySelector(".step");
+  if (step) step.textContent = s.label || "";
+
+  if (s.view === "familiar") familiar(at);
+}
+
+function fit() {
+  const k = Math.min(innerWidth / 1600, innerHeight / 900);
+  $("stage").style.transform = `translate(-50%, -50%) scale(${k})`;
+}
+addEventListener("resize", fit);
+addEventListener("keydown", e => {
+  if (["ArrowRight", "PageDown", " ", "Enter", "ArrowDown"].includes(e.key)) { e.preventDefault(); go(cur + 1); }
+  else if (["ArrowLeft", "PageUp", "Backspace", "ArrowUp"].includes(e.key)) { e.preventDefault(); go(cur - 1); }
+  else if (e.key === "Home") go(0);
+  else if (e.key === "End") go(STEPS.length - 1);
+  else if (e.key === "f" || e.key === "F") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+});
+$("stage").addEventListener("click", e => {
+  // click the left edge to go back, anywhere else to go forward
+  const r = $("stage").getBoundingClientRect();
+  go((e.clientX - r.left) / r.width < 0.12 ? cur - 1 : cur + 1);
+});
+fit();
+go(parseInt(location.hash.slice(1), 10) || 0);
+</script>
+</body>
+</html>
