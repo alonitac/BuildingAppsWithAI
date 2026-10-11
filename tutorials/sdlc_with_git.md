@@ -324,7 +324,7 @@ So detached HEAD is fine for **looking around**, not for working. To work on an 
 
 ```bash
 # First checkout v1.1.0
-git checout v1.1.0
+git checkout v1.1.0
 
 # And from that branch, create a new branch
 git checkout -b fix/v1.1.0
