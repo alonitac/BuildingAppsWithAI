@@ -120,7 +120,7 @@ In the previous tutorials, you did the git flow by hand: create a branch, commit
 New chat, **Agent** mode:
 
 
-> /create-skill A project skill called `git-workflow` that makes the agent follow our git workflow every time it changes code:
+> /skill-creator A project skill called `git-workflow` that makes the agent follow our git workflow every time it changes code:
 > - Never work on `main`. Before changing code, pull `main` and create a branch: `feat/...` for features, `fix/...` for bugs, `docs/...` for docs.
 > - Never commit `.env` or other secrets.
 > - When the work is done, push the branch and open a PR to `main`, with a short description: what changed, why, and how it was tested.
