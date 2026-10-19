@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How RAG finds the answer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #F3EEE3;
+  --ink: #121212;
+  --idx: #2B59FF;
+  --llm: #D97757;
+  --kw: #1F8A5B;
+  --vec: #7A3CFF;
+  --rr: #C2410C;
+  --hl: #FFE14A;
+  --bad: #E5484D;
+  --mute: #8a8473;
+  --dark: #17161b;
+  --mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #0d0d0d; overflow: hidden; }
+body { font-family: 'Space Grotesk', system-ui, sans-serif; color: var(--ink); }
+#stage {
+  position: absolute; left: 50%; top: 50%; width: 1600px; height: 900px;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(rgba(18,18,18,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18,18,18,.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  overflow: hidden; user-select: none; cursor: pointer;
+}
+section { position: absolute; inset: 0; display: none; padding: 64px 80px; }
+#counter { position: absolute; right: 30px; top: 30px; font: 15px var(--mono); color: var(--mute); z-index: 2; }
+h2 { font-size: 64px; margin: 0; letter-spacing: -.03em; }
+h2 small { display: block; font-size: 28px; letter-spacing: 0; color: #555; margin-top: 10px; font-weight: 500; }
+.c-kw { color: var(--kw); } .c-vec { color: var(--vec); } .c-rr { color: var(--rr); } .c-llm { color: var(--llm); } .c-idx { color: var(--idx); }
+.hide { visibility: hidden; }
+.pop { animation: drop .4s ease; }
+@keyframes drop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.caption { position: absolute; left: 80px; right: 80px; bottom: 50px; background: var(--hl); border: 3px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); padding: 20px 28px; font-size: 29px; line-height: 1.35; }
+.panel { background: #fff; border: 4px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); }
+.panel > .ttl { padding: 12px 20px; border-bottom: 4px solid var(--ink); font: 700 26px 'Space Grotesk'; color: #fff; }
+.chip { display: inline-block; font: 700 17px var(--mono); padding: 3px 10px; border: 2px solid var(--ink); background: #fff; }
+.chip.knob { background: var(--hl); }
+code, .mono { font-family: var(--mono); }
+
+/* ---------- title ---------- */
+#title { flex-direction: column; justify-content: center; padding: 0 120px; }
+#title h1 { font-size: 130px; margin: 0; letter-spacing: -.04em; line-height: 1; }
+#title p { font-size: 34px; margin: 30px 0 0; color: #444; }
+#title .hint { position: absolute; bottom: 60px; left: 120px; font: 18px var(--mono); color: var(--mute); }
+
+/* ---------- pipeline ---------- */
+.flow { display: flex; align-items: center; gap: 0; margin-top: 26px; }
+.flow .lane-t { width: 170px; font: 700 22px var(--mono); }
+.flow .bx { border: 4px solid var(--ink); background: #fff; box-shadow: 6px 6px 0 var(--ink); padding: 16px 18px; font-size: 24px; width: 220px; text-align: center; }
+.flow .bx small { display: block; font: 15px var(--mono); color: #666; margin-top: 4px; }
+.flow .ar { width: 50px; height: 0; border-top: 5px solid var(--ink); position: relative; margin: 0 6px; }
+.flow .ar::after { content: ""; position: absolute; right: -12px; top: -13px; border: 10px solid transparent; border-left: 15px solid var(--ink); }
+.flow .bx.store { background: var(--dark); color: #fff; }
+.flow .bx.store small { color: #bbb; }
+.flow .bx.llm { background: var(--llm); color: #fff; }
+.flow .bx.llm small { color: #ffe; }
+.flow .bx.ret { background: var(--hl); }
+.phase { font: 700 30px 'Space Grotesk'; margin-top: 50px; }
+.phase small { font: 18px var(--mono); color: var(--mute); margin-left: 12px; }
+
+/* ---------- 3d vectors ---------- */
+#space canvas { position: absolute; left: 50px; top: 150px; width: 900px; height: 700px; }
+#space .side { position: absolute; left: 980px; right: 70px; top: 140px; display: flex; flex-direction: column; gap: 14px; font-size: 22px; line-height: 1.35; }
+#space .side > div { background: #fff; border: 3px solid var(--ink); padding: 12px 18px; }
+#space .side .key { background: var(--hl); box-shadow: 6px 6px 0 var(--ink); }
+#sims { font: 17px/1.6 var(--mono); }
+#sims .top { background: var(--hl); font-weight: 700; }
+
+/* ---------- keyword search ---------- */
+.query { display: inline-block; background: var(--ink); color: var(--paper); padding: 12px 22px; font-size: 30px; border: 3px solid var(--ink); margin-top: 30px; }
+.query .t { font: 700 14px var(--mono); color: #aaa; display: block; }
+.words { display: flex; gap: 16px; margin-top: 24px; align-items: flex-end; }
+.word { border: 3px solid var(--ink); background: #fff; padding: 10px 16px; font: 700 24px var(--mono); text-align: center; }
+.word .w { display: block; font: 15px var(--mono); color: #555; margin-top: 4px; font-weight: 400; }
+.word.stop { opacity: .35; text-decoration: line-through; }
+.chunks { display: flex; flex-direction: column; gap: 16px; margin-top: 30px; }
+.chk { display: grid; grid-template-columns: 1fr 190px; border: 3px solid var(--ink); background: #fff; }
+.chk .tx { padding: 14px 18px; font-size: 22px; line-height: 1.4; }
+.chk .tx .src { font: 14px var(--mono); color: var(--mute); display: block; }
+.chk .sc { border-left: 3px solid var(--ink); display: flex; align-items: center; justify-content: center; font: 700 30px var(--mono); }
+mark { background: #b9f3d3; padding: 0 3px; outline: 2px solid var(--kw); }
+mark.v { background: #e2d4ff; outline-color: var(--vec); }
+
+/* ---------- vs ---------- */
+#vs table { border-collapse: collapse; margin-top: 40px; width: 100%; font-size: 26px; }
+#vs th, #vs td { border: 3px solid var(--ink); padding: 18px 20px; vertical-align: top; background: #fff; }
+#vs th { background: var(--dark); color: #fff; text-align: left; font-size: 24px; }
+#vs th.kw { background: var(--kw); } #vs th.vec { background: var(--vec); }
+#vs td.q { font-weight: 700; width: 360px; }
+.ok { color: var(--kw); font-weight: 700; } .no { color: var(--bad); font-weight: 700; }
+
+/* ---------- weight ---------- */
+.formula { margin-top: 26px; font: 700 34px var(--mono); background: #fff; border: 4px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); padding: 18px 26px; display: inline-block; }
+.formula .w { background: var(--hl); padding: 0 6px; }
+.rank { margin-top: 36px; display: flex; flex-direction: column; gap: 14px; position: relative; }
+.rrow { display: grid; grid-template-columns: 60px 620px 1fr 120px; align-items: center; gap: 16px; height: 74px; transition: transform .6s ease; }
+.rrow .pos { font: 700 34px var(--mono); }
+.rrow .tx { background: #fff; border: 3px solid var(--ink); padding: 10px 14px; font-size: 21px; line-height: 1.3; }
+.rrow .bar { height: 40px; display: flex; border: 3px solid var(--ink); background: #fff; }
+.rrow .bar span { display: block; height: 100%; transition: width .6s ease; }
+.rrow .bar .k { background: var(--kw); } .rrow .bar .v { background: var(--vec); }
+.rrow .val { font: 700 30px var(--mono); }
+.legend { font: 18px var(--mono); margin-top: 16px; display: flex; gap: 26px; }
+.legend i { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--ink); vertical-align: -3px; margin-right: 8px; }
+
+/* ---------- threshold ---------- */
+#thr .list { position: absolute; left: 80px; top: 240px; width: 1000px; display: flex; flex-direction: column; gap: 10px; }
+#thr .it { display: grid; grid-template-columns: 1fr 110px; border: 3px solid var(--ink); background: #fff; font-size: 21px; transition: opacity .4s; }
+#thr .it .tx { padding: 9px 14px; }
+#thr .it .s { border-left: 3px solid var(--ink); display: flex; align-items: center; justify-content: center; font: 700 22px var(--mono); }
+#thr .it.cut { opacity: .25; text-decoration: line-through; }
+#thr .line { position: absolute; left: 60px; width: 1060px; border-top: 6px dashed var(--bad); transition: top .5s ease; }
+#thr .line span { position: absolute; right: 0; top: -38px; font: 700 22px var(--mono); color: #fff; background: var(--bad); padding: 2px 10px; white-space: nowrap; }
+#thr .side { position: absolute; left: 1200px; right: 60px; top: 240px; font-size: 25px; line-height: 1.4; display: flex; flex-direction: column; gap: 20px; }
+#thr .side div { background: #fff; border: 3px solid var(--ink); padding: 16px; }
+
+/* ---------- pagerank ---------- */
+#pr .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; margin-top: 40px; }
+#pr .ds .ttl { background: var(--idx); }
+#pr .ds.old .ttl { background: var(--mute); }
+#pr .ds .in { padding: 18px 22px; font-size: 23px; line-height: 1.45; }
+#pr .sum { font: 700 30px var(--mono); margin-top: 10px; }
+#pr .sum .pr { background: var(--hl); padding: 0 6px; }
+#pr .win { outline: 6px solid var(--kw); }
+
+/* ---------- rerank ---------- */
+#rr1 .chk .sc { font-size: 26px; }
+.pair { display: grid; grid-template-columns: 720px 70px 190px 70px 1fr; align-items: center; margin-top: 46px; }
+.pair .qc { border: 3px solid var(--ink); background: #fff; box-shadow: 6px 6px 0 var(--ink); }
+.pair .qc .q { background: var(--ink); color: var(--paper); padding: 10px 16px; font-size: 22px; }
+.pair .qc .c { padding: 12px 16px; font-size: 22px; }
+.pair .arr { font: 700 40px var(--mono); text-align: center; }
+.pair .model { background: var(--rr); color: #fff; border: 4px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); padding: 20px 10px; text-align: center; font: 700 26px 'Space Grotesk'; }
+.pair .res { font: 700 46px var(--mono); }
+.pair .res small { display: block; font: 500 21px 'Space Grotesk'; color: var(--ink); }
+#rr3 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; margin-top: 34px; }
+#rr3 .panel .in { padding: 18px 22px; font-size: 24px; line-height: 1.5; }
+.steps3 { display: flex; align-items: center; margin-top: 46px; }
+.steps3 > div:not(.arr) { flex: 1; border: 3px solid var(--ink); padding: 12px 14px; text-align: center; font: 700 24px 'Space Grotesk'; background: #fff; }
+.steps3 small { display: block; font: 16px var(--mono); color: #555; margin-top: 4px; }
+.steps3 .s2 { background: var(--hl) !important; } .steps3 .s3 { background: #fde3d6 !important; }
+.steps3 .arr { font: 700 34px var(--mono); padding: 0 12px; }
+
+/* ---------- funnel ---------- */
+#funnel .f { position: absolute; left: 80px; top: 180px; width: 1060px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+#funnel .lvl { border: 4px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); padding: 9px 18px; font-size: 23px; text-align: center; background: #fff; }
+#funnel .lvl b { display: block; font-size: 26px; }
+#funnel .lvl .chip { margin: 6px 4px 0; }
+#funnel .side { position: absolute; left: 1180px; right: 60px; top: 190px; font-size: 24px; line-height: 1.4; display: flex; flex-direction: column; gap: 18px; }
+#funnel .side div { background: #fff; border: 3px solid var(--ink); padding: 14px 16px; }
+
+/* ---------- top n ---------- */
+#topn .prompt { position: absolute; left: 80px; top: 225px; width: 820px; background: var(--dark); color: #e9e6dd; border: 3px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); padding: 20px 24px; font: 19px/1.55 var(--mono); }
+#topn .prompt .dim { color: #8b8778; }
+#topn .prompt .c { display: block; background: rgba(255,225,74,.15); border-left: 6px solid var(--hl); padding: 2px 10px; margin: 4px 0; }
+#topn .side { position: absolute; left: 960px; right: 70px; top: 235px; font-size: 25px; line-height: 1.4; display: flex; flex-direction: column; gap: 20px; }
+#topn .side div { background: #fff; border: 3px solid var(--ink); padding: 16px 18px; }
+
+/* ---------- cheat sheet ---------- */
+#cheat table { border-collapse: collapse; margin-top: 30px; width: 100%; font-size: 22px; }
+#cheat th, #cheat td { border: 3px solid var(--ink); padding: 12px 16px; background: #fff; text-align: left; vertical-align: top; }
+#cheat th { background: var(--dark); color: #fff; }
+#cheat td:first-child { font-weight: 700; white-space: nowrap; }
+#cheat td:nth-child(3) { font-family: var(--mono); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="counter"></div>
+
+  <!-- ================= title ================= -->
+  <section id="title">
+    <h1>How RAG finds<br>the answer</h1>
+    <p>Inside RAGFlow: similarity, keywords, rerank, Top N</p>
+    <div class="hint">click or → to start</div>
+  </section>
+
+  <!-- ================= 1. pipeline ================= -->
+  <section id="pipe">
+    <h2>The RAG pipeline</h2>
+    <div class="phase">1. Indexing <small>once, when documents are added</small></div>
+    <div class="flow">
+      <div class="bx" data-at="0">Documents<small>docx, pdf, xlsx</small></div><div class="ar" data-at="1"></div>
+      <div class="bx" data-at="1">Parse<small>text + tables</small></div><div class="ar" data-at="2"></div>
+      <div class="bx" data-at="2">Chunk<small>~500 tokens each</small></div><div class="ar" data-at="3"></div>
+      <div class="bx" data-at="3">Embed<small>text → numbers</small></div><div class="ar" data-at="4"></div>
+      <div class="bx store" data-at="4">Index<small>words + vectors</small></div>
+    </div>
+    <div class="phase" data-at="5">2. Asking <small>every question</small></div>
+    <div class="flow">
+      <div class="bx" data-at="5">Question</div><div class="ar" data-at="6"></div>
+      <div class="bx ret" data-at="6">Retrieve<small>find the best chunks</small></div><div class="ar" data-at="7"></div>
+      <div class="bx" data-at="7">Top N chunks<small>+ the question</small></div><div class="ar" data-at="8"></div>
+      <div class="bx llm" data-at="8">LLM<small>reads, answers</small></div><div class="ar" data-at="9"></div>
+      <div class="bx" data-at="9">Answer<small>+ citations</small></div>
+    </div>
+    <div class="caption" data-at="10">Today's focus: the yellow box. <b>How does RAGFlow decide which chunks are "the best"?</b></div>
+  </section>
+
+  <!-- ================= 2. 3d vectors ================= -->
+  <section id="space">
+    <h2>Meaning is a direction <small>An embedding turns text into an arrow</small></h2>
+    <canvas id="cv" width="1800" height="1400"></canvas>
+    <div class="side">
+      <div data-at="0">Imagine the model rates every text: how much is it about <b>regulation</b>? <b>security</b>? <b>hardware</b>? 3 numbers = an <b>arrow</b>.<br><b class="mono" style="font-size:19px">"PRRC signs EU assessments" → [0.9, 0.1, 0.1]</b></div>
+      <div data-at="1">Texts about the same topic point the <b>same way</b>.<br><small class="mono" style="font-size:16px;color:#666">real models use 1024 numbers, with no names</small></div>
+      <div data-at="2">The question becomes an arrow too, with the <b>same</b> model.<br><b class="mono" style="font-size:19px">"Who approves changes for EU products?"</b></div>
+      <div class="key" data-at="3"><b>Vector similarity</b> = how small the angle is.<br><span id="sims"></span></div>
+    </div>
+  </section>
+
+  <!-- ================= 3. full-text ================= -->
+  <section id="kw">
+    <h2>Full-text search <small>The other way to find chunks: match the words, like Google</small></h2>
+    <div class="query"><span class="t">QUESTION</span>What is the certificate of K231187?</div>
+    <div class="words" data-at="1">
+      <div class="word stop">what</div><div class="word stop">is</div><div class="word stop">the</div>
+      <div class="word">certificate<span class="w">common · weight 0.3</span></div>
+      <div class="word stop">of</div>
+      <div class="word" style="background:var(--hl)">K231187<span class="w">rare · weight 0.7</span></div>
+    </div>
+    <div class="chunks">
+      <div class="chk" data-at="2"><div class="tx"><span class="src">Register · Table 1</span>Acme ArcFlow Ablation Catheter · 510(k) <mark>K231187</mark> · EU <mark>certificate</mark> NordCert MDR-2987-0230</div><div class="sc">1.0</div></div>
+      <div class="chk" data-at="3"><div class="tx"><span class="src">Register · intro</span>All EU <mark>certificates</mark> are issued by the notified body NordCert…</div><div class="sc">0.3</div></div>
+      <div class="chk" data-at="4"><div class="tx"><span class="src">SOP · Records</span>Assessments are kept for at least 10 years…</div><div class="sc">0.0</div></div>
+    </div>
+    <div class="caption" data-at="5"><b>Keyword score</b> = how much of the question's (weighted) words appear in the chunk. Rare words count more. Common words like "the" are ignored.</div>
+  </section>
+
+  <!-- ================= 4. vs ================= -->
+  <section id="vs">
+    <h2>Full-text vs vector</h2>
+    <table>
+      <tr><th>Question</th><th class="kw">Full-text (keywords)</th><th class="vec">Vector (meaning)</th></tr>
+      <tr data-at="1"><td class="q">K231187</td>
+        <td><span class="ok">✔ exact hit.</span> The code appears in the register.</td>
+        <td><span class="no">✘ weak.</span> A code has no "meaning" to point at.</td></tr>
+      <tr data-at="2"><td class="q">Who approves changes for EU products?</td>
+        <td><span class="no">✘ misses.</span> The SOP says "PRRC must <i>sign</i>…", not "approve".</td>
+        <td><span class="ok">✔ finds it.</span> Same meaning, different words.</td></tr>
+      <tr data-at="3"><td class="q">Typo: "Garduian ICD"</td>
+        <td><span class="no">✘ no such word.</span></td>
+        <td><span class="ok">✔ usually close enough.</span></td></tr>
+    </table>
+    <div class="caption" data-at="4">Each one misses what the other finds. <b>RAGFlow runs both and mixes the scores: hybrid search.</b></div>
+  </section>
+
+  <!-- ================= 5. keyword weight ================= -->
+  <section id="wt">
+    <h2>Keyword similarity weight <small>How to mix the two scores</small></h2>
+    <div class="formula">score = <span class="w" id="w1">0.7</span> × <span class="c-kw">keyword</span> + <span class="w" id="w2">0.3</span> × <span class="c-vec">vector</span></div>
+    <div class="legend"><span><i style="background:var(--kw)"></i>keyword part</span><span><i style="background:var(--vec)"></i>vector part</span><span class="mono">question: "Who must sign changes for EU products?"</span></div>
+    <div class="rank" id="rank"></div>
+    <div class="caption" data-at="2">Users search by codes and names? <b>Raise it.</b> Users ask in free words? <b>Lower it.</b> Default: 0.7.<br><small>Vector similarity weight = 1 − keyword weight. Same knob, other side.</small></div>
+  </section>
+
+  <!-- ================= 6. threshold ================= -->
+  <section id="thr">
+    <h2>Similarity threshold <small>The passing grade</small></h2>
+    <div class="list" id="thrlist"></div>
+    <div class="line" id="thrline"><span id="thrlbl"></span></div>
+    <div class="side">
+      <div data-at="0">Chunks below the line are <b>dropped</b>. They never reach the LLM.</div>
+      <div data-at="1"><b>Too high</b>: the answer may be cut.<br><b>Too low</b>: noise gets in.</div>
+      <div data-at="2" style="background:var(--hl)">Nothing passes? RAGFlow returns the <b>Empty response</b>, without calling the LLM.</div>
+    </div>
+  </section>
+
+  <!-- ================= 7. pagerank ================= -->
+  <section id="pr">
+    <h2>PageRank <small>Prefer one dataset over another</small></h2>
+    <div class="cols">
+      <div class="panel ds" id="pr-a"><div class="ttl">Dataset: Acme SOPs (official) · PageRank 10</div><div class="in">
+        "Triage must be done within <b>3</b> business days." <span class="mono" style="font-size:16px;color:#666">rev D</span>
+        <div class="sum">score 0.48 <span data-at="1">+ <span class="pr">10</span> = 10.48</span></div></div></div>
+      <div class="panel ds old" id="pr-b"><div class="ttl">Dataset: Old team wiki · PageRank 0</div><div class="in">
+        "Triage must be done within <b>5</b> business days." <span class="mono" style="font-size:16px;color:#666">2023 page</span>
+        <div class="sum">score 0.61 <span data-at="1">+ <span class="pr">0</span> = 0.61</span></div></div></div>
+    </div>
+    <div class="caption" data-at="2">A dataset setting (0–100). It's <b>added</b> to every chunk score of that dataset, so the official answer wins. Leave it at 0 when the assistant uses one dataset.</div>
+  </section>
+
+  <!-- ================= 8a. rerank: the problem ================= -->
+  <section id="rr1">
+    <h2>Where vectors fail <small>An arrow captures the topic, not the details</small></h2>
+    <div class="query"><span class="t">QUESTION</span>Which products are <u>NOT</u> affected by the Bluetooth vulnerability?</div>
+    <div class="chunks">
+      <div class="chk" data-at="1"><div class="tx"><span class="src">CAPA · section 2</span>Affected: HeartLink app, Pulse DR, Guardian ICD. Fixed in app 5.3 and new firmware.</div><div class="sc">#1 · 0.86</div></div>
+      <div class="chk" data-at="1"><div class="tx"><span class="src">CAPA · section 2</span>Not affected: ArcFlow (no software), Orbit and SpineGuide (no BlueSignal parts).</div><div class="sc">#2 · 0.84</div></div>
+    </div>
+    <div class="caption" data-at="2">Both chunks are about "products + Bluetooth vulnerability", so their arrows point the same way. The word <b>NOT</b> barely moves an arrow. <b>The wrong chunk wins.</b></div>
+  </section>
+
+  <!-- ================= 8b. rerank: the fix ================= -->
+  <section id="rr2">
+    <h2>A rerank model reads them <span class="c-rr">together</span></h2>
+    <div class="pair" data-at="1">
+      <div class="qc"><div class="q">Which products are NOT affected…?</div><div class="c">Affected: HeartLink app, Pulse DR, Guardian ICD…</div></div>
+      <div class="arr">→</div><div class="model">rerank<br>model</div><div class="arr">→</div>
+      <div class="res">0.12<small>lists the affected ones. Not what was asked.</small></div>
+    </div>
+    <div class="pair" data-at="2">
+      <div class="qc"><div class="q">Which products are NOT affected…?</div><div class="c">Not affected: ArcFlow, Orbit and SpineGuide…</div></div>
+      <div class="arr">→</div><div class="model">rerank<br>model</div><div class="arr">→</div>
+      <div class="res" style="color:var(--kw)">0.96<small>exactly the answer.</small></div>
+    </div>
+    <div class="caption" data-at="3">A rerank model is a small AI model with <b>one job</b>: "how well does this chunk answer this question?" It reads both, like a person, so it notices the <b>NOT</b>.</div>
+  </section>
+
+  <!-- ================= 8c. rerank: why only candidates ================= -->
+  <section id="rr3">
+    <h2>So why not always rerank? <small>Because it's slow</small></h2>
+    <div class="cols">
+      <div class="panel"><div class="ttl" style="background:var(--vec)">Vector search</div><div class="in">Chunk arrows are computed <b>once</b>, at upload.<br>A question = 1 new arrow + simple angle math.<br><b>100,000 chunks → milliseconds.</b></div></div>
+      <div class="panel"><div class="ttl" style="background:var(--rr)">Rerank model</div><div class="in">Nothing can be prepared in advance: it needs the question.<br>Every question × every chunk = one model run.<br><b>100,000 chunks → 100,000 runs. Per question.</b></div></div>
+    </div>
+    <div class="steps3" data-at="1">
+      <div class="s1">1. Fast search<small>keyword + vector, all chunks</small></div><div class="arr">→</div>
+      <div class="s2">best 64<small>= Rerank candidates</small></div><div class="arr">→</div>
+      <div class="s3">2. Rerank model<small>reads only those 64</small></div><div class="arr">→</div>
+      <div class="s4">Top N<small>to the LLM</small></div>
+    </div>
+    <div class="caption" data-at="2">Like hiring: screen 1,000 CVs quickly, then <b>interview</b> only the best 64. In RAGFlow's score, the rerank score <b>takes the vector's place</b>: <span class="mono">0.7 × keyword + 0.3 × rerank</span></div>
+  </section>
+
+  <!-- ================= 9. top n ================= -->
+  <section id="topn">
+    <h2>Top N <small>How many chunks go into the prompt</small></h2>
+    <div class="prompt" id="topprompt"></div>
+    <div class="side">
+      <div data-at="0">After scoring, only the best <b>N</b> chunks are pasted into the prompt. Default: <b>8</b>.</div>
+      <div data-at="1"><b>Small N</b>: cheap and focused, but an answer spread over several chunks gets cut. Here, N = 1: the LLM never sees the update to <b>3 days</b>.</div>
+      <div data-at="2"><b>Large N</b>: more complete, but more tokens (cost), and more noise for the LLM.</div>
+    </div>
+  </section>
+
+  <!-- ================= 10. funnel ================= -->
+  <section id="funnel">
+    <h2>All together</h2>
+    <div class="f">
+      <div class="lvl" style="width:1040px" data-at="0"><b>All chunks in the dataset</b>thousands</div>
+      <div class="lvl" style="width:900px;background:#eef4ff" data-at="1"><b>1. Search: full-text + vector</b>keep the best few dozen <span class="chip knob">Rerank candidates · 64</span></div>
+      <div class="lvl" style="width:760px;background:#f3ecff" data-at="2"><b>2. Score each candidate</b>
+        <span class="chip knob">Keyword similarity weight · 0.7</span><span class="chip knob">Rerank model · optional</span><span class="chip knob">PageRank · 0</span></div>
+      <div class="lvl" style="width:600px;background:#fff3f0" data-at="3"><b>3. Drop low scores</b><span class="chip knob">Similarity threshold · 0.2</span></div>
+      <div class="lvl" style="width:440px;background:var(--hl)" data-at="4"><b>4. Keep the best</b><span class="chip knob">Top N · 8</span></div>
+      <div class="lvl" style="width:280px;background:var(--llm);color:#fff" data-at="5"><b>LLM</b>writes the answer</div>
+    </div>
+    <div class="side">
+      <div data-at="1">Steps 1–4 have <b>no LLM</b>. This is exactly what <b>Retrieval testing</b> shows you.</div>
+      <div data-at="5" style="background:var(--hl)">Bad answer? First check retrieval. If the right chunk isn't there, no prompt can fix it.</div>
+    </div>
+  </section>
+
+  <!-- ================= 11. cheat sheet ================= -->
+  <section id="cheat">
+    <h2>Cheat sheet</h2>
+    <table>
+      <tr><th>Setting</th><th>What it does</th><th>Default</th><th>Change it when…</th></tr>
+      <tr><td>Similarity threshold</td><td>Minimum score to pass</td><td>0.2</td><td>Answers you know exist are missing → lower</td></tr>
+      <tr><td>Keyword similarity weight</td><td>Mix of keyword vs meaning</td><td>0.7</td><td>Users search by IDs/codes → raise. Free questions → lower</td></tr>
+      <tr><td>Rerank model</td><td>Careful second opinion on candidates</td><td>none</td><td>Right chunk is found but ranked too low</td></tr>
+      <tr><td>Rerank candidates</td><td>How many chunks the rerank model checks</td><td>64</td><td>Rarely. More = better recall, slower</td></tr>
+      <tr><td>Top N</td><td>How many chunks go to the LLM</td><td>8</td><td>Answers are partial → raise. Too much noise/cost → lower</td></tr>
+      <tr><td>PageRank</td><td>Boost for a whole dataset</td><td>0</td><td>One assistant, several datasets, one is more trusted</td></tr>
+    </table>
+  </section>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+/* ---------- 3d vector space ---------- */
+const PTS = [               // [regulation, security, hardware]
+  { t: "PRRC signs EU assessments",          v: [0.90, 0.10, 0.10], c: "#2B59FF" },
+  { t: "NordCert renews the EU certificate", v: [0.85, 0.15, 0.30], c: "#2B59FF" },
+  { t: "Bluetooth pairing vulnerability",    v: [0.10, 0.90, 0.30], c: "#E5484D" },
+  { t: "Firmware update fixes the flaw",     v: [0.15, 0.75, 0.60], c: "#E5484D", left: true },
+  { t: "Lithium battery cell",               v: [0.05, 0.05, 0.95], c: "#1F8A5B" },
+  { t: "New battery supplier needs approval",v: [0.60, 0.05, 0.80], c: "#1F8A5B" },
+];
+const Q = { t: "question", v: [0.90, 0.10, 0.15], c: "#121212" };
+const cos = (a, b) => { const d = (x, y) => x[0]*y[0] + x[1]*y[1] + x[2]*y[2]; return d(a, b) / Math.sqrt(d(a, a) * d(b, b)); };
+const RANKED = PTS.map(p => ({ ...p, s: cos(p.v, Q.v) })).sort((a, b) => b.s - a.s);
+const TOP = new Set(RANKED.slice(0, 3).map(p => p.t));
+$("sims").innerHTML = RANKED.slice(0, 4).map((p, i) =>
+  `<span class="${i < 3 ? "top" : ""}">${p.s.toFixed(2)}  ${p.t}</span>`).join("<br>") + "<br>…";
+
+let spaceAt = 0;
+const theta = -0.75;
+function drawSpace() {
+  const cv = $("cv"), g = cv.getContext("2d"), W = cv.width, H = cv.height;
+  g.clearRect(0, 0, W, H);
+  const tilt = 0.35, S = 820, ox = W * 0.30, oy = H * 0.80;
+  const P = ([x, y, z]) => {             // data axes: x→right, y→depth, z→up
+    const X = x * Math.cos(theta) - y * Math.sin(theta);
+    const Y = x * Math.sin(theta) + y * Math.cos(theta);
+    const Zs = z * Math.cos(tilt) - Y * Math.sin(tilt), D = Y * Math.cos(tilt) + z * Math.sin(tilt);
+    const k = 3.2 / (3.2 + D);
+    return [ox + X * S * k, oy - Zs * S * k];
+  };
+  const O = P([0, 0, 0]);
+  // axes
+  g.lineWidth = 3; g.strokeStyle = "#b8b09c"; g.font = "700 32px JetBrains Mono"; g.fillStyle = "#6b6555";
+  [[1.3, 0, 0], [0, 1.15, 0], [0, 0, 1.15]].forEach((a, i) => {
+    const e = P(a); g.beginPath(); g.moveTo(...O); g.lineTo(...e); g.stroke();
+    if (i === 0) { g.textAlign = "right"; g.fillText("Regulation", e[0], e[1] - 18); g.textAlign = "left"; }
+    else g.fillText(["", "Security", "Hardware"][i], e[0] + 8, e[1]);
+  });
+  const arrow = (p, color, w, label, bold, hl) => {
+    const e = P(p.v);
+    g.strokeStyle = color; g.lineWidth = w; g.globalAlpha = hl === false ? 0.3 : 1;
+    g.beginPath(); g.moveTo(...O); g.lineTo(...e); g.stroke();
+    g.fillStyle = color; g.beginPath(); g.arc(e[0], e[1], w * 2.4, 0, 7); g.fill();
+    if (label) {
+      g.font = `${bold ? "700 " : ""}30px Space Grotesk`;
+      const tw = g.measureText(label).width, x = p.left ? e[0] - 20 - tw : e[0] + 20;
+      if (hl) { g.fillStyle = "#FFE14A"; g.fillRect(x - 6, e[1] - 26, tw + 12, 38); }
+      g.fillStyle = "#121212"; g.fillText(label, x, e[1] + 4);
+    }
+    g.globalAlpha = 1;
+  };
+  (spaceAt === 0 ? PTS.slice(0, 1) : PTS).forEach(p => arrow(p, p.c, 5, p.t, false, spaceAt >= 3 ? TOP.has(p.t) : undefined));
+  if (spaceAt >= 2) { arrow(Q, Q.c, 10, "", true); const e = P(Q.v); g.font = "700 30px Space Grotesk"; g.fillStyle = "#121212"; g.fillText("QUESTION", e[0] - 150, e[1] - 22); }
+}
+
+/* ---------- keyword weight ---------- */
+const WCH = [
+  { t: "PRRC (Lukas Becker) must sign every assessment that affects an EU product", k: 0.50, v: 0.85 },
+  { t: "Every regulatory change gets an ID: RC-YYYY-NNN", k: 0.55, v: 0.40 },
+  { t: "All EU certificates are issued by NordCert", k: 0.25, v: 0.60 },
+];
+$("rank").innerHTML = WCH.map((c, i) => `<div class="rrow" id="wr${i}"><div class="pos"></div><div class="tx">${c.t}</div>
+  <div class="bar"><span class="k"></span><span class="v"></span></div><div class="val"></div></div>`).join("");
+function weights(w) {
+  $("w1").textContent = w.toFixed(1); $("w2").textContent = (1 - w).toFixed(1);
+  const sc = WCH.map(c => ({ k: w * c.k, v: (1 - w) * c.v }));
+  const order = sc.map((s, i) => [s.k + s.v, i]).sort((a, b) => b[0] - a[0]).map(x => x[1]);
+  sc.forEach((s, i) => {
+    const r = $("wr" + i), pos = order.indexOf(i);
+    r.style.transform = `translateY(${(pos - i) * 88}px)`;
+    r.querySelector(".pos").textContent = "#" + (pos + 1);
+    r.querySelector(".k").style.width = s.k * 100 + "%";
+    r.querySelector(".v").style.width = s.v * 100 + "%";
+    r.querySelector(".val").textContent = (s.k + s.v).toFixed(2);
+  });
+}
+
+/* ---------- threshold ---------- */
+const TH = [
+  ["SOP 5.5: the PRRC must sign assessments for EU products", 0.81],
+  ["SOP 4: Lukas Becker, EU Regulatory Manager and PRRC", 0.66],
+  ["Register: Acme MedTech GmbH, Munich, EU regulatory office", 0.52],
+  ["Minutes 3: Lukas Becker on the Guardian ICD MDR audit", 0.41],
+  ["SOP 3: definitions of RRB and impact assessment", 0.27],
+  ["CAPA 4: EU is not a serious incident", 0.21],
+  ["Register: KR-9 robotic arm actuator, Nagoya", 0.12],
+  ["Minutes 6: ArcFlow PMCF enrollment 112 of 150", 0.06],
+];
+$("thrlist").innerHTML = TH.map(([t, s]) => `<div class="it"><div class="tx">${t}</div><div class="s">${s.toFixed(2)}</div></div>`).join("");
+function threshold(th) {
+  const items = [...document.querySelectorAll("#thr .it")];
+  let cutIdx = TH.findIndex(([, s]) => s < th); if (cutIdx < 0) cutIdx = TH.length;
+  items.forEach((el, i) => el.classList.toggle("cut", i >= cutIdx));
+  const ref = items[Math.min(cutIdx, items.length - 1)];
+  const top = cutIdx >= items.length ? ref.offsetTop + ref.offsetHeight + 5 : ref.offsetTop - 5;
+  $("thrline").style.top = 240 + top + "px";
+  $("thrlbl").textContent = `threshold ${th}`;
+}
+
+/* ---------- top n ---------- */
+const CH = ["SOP 5.2: triage within 5 business days…", "Minutes 7: triage shortened to 3 business days…", "SOP 4: Tomer Shani, Priya Raman…",
+            "SOP 5.4: RRB meets monthly…", "Register: product owners…", "Minutes 8: action items…", "SOP 7: triage on time ≥ 95%…", "SOP 3: definitions…"];
+function topn(n) {
+  $("topprompt").innerHTML = `<span class="dim">system:</span> You are a regulatory affairs assistant…
+Answer ONLY from the knowledge base below.
+
+<span class="dim">Here is the knowledge base:</span>
+${CH.slice(0, n).map((c, i) => `<span class="c">[${i + 1}] ${c}</span>`).join("")}<span class="dim">The above is the knowledge base.</span>
+
+<span class="dim">user:</span> How many days do we have to triage?
+<span class="dim">Top N = ${n}</span>`.replace(/\n/g, "<br>");
+}
+
+/* ---------- steps ---------- */
+const STEPS = [
+  { view: "title" },
+  ...[...Array(11).keys()].map(at => ({ view: "pipe", at })),
+  ...[0, 1, 2, 3].map(at => ({ view: "space", at })),
+  ...[0, 1, 2, 3, 4, 5].map(at => ({ view: "kw", at })),
+  ...[0, 1, 2, 3, 4].map(at => ({ view: "vs", at })),
+  { view: "wt", at: 0, w: 0.7 }, { view: "wt", at: 1, w: 0.1 }, { view: "wt", at: 2, w: 0.7 },
+  { view: "thr", at: 0, th: 0.2 }, { view: "thr", at: 1, th: 0.5 }, { view: "thr", at: 2, th: 0.9 },
+  ...[0, 1, 2].map(at => ({ view: "pr", at })),
+  ...[0, 1, 2].map(at => ({ view: "rr1", at })),
+  ...[0, 1, 2, 3].map(at => ({ view: "rr2", at })),
+  ...[0, 1, 2].map(at => ({ view: "rr3", at })),
+  { view: "topn", at: 0, n: 8 }, { view: "topn", at: 1, n: 1 }, { view: "topn", at: 2, n: 8 },
+  ...[0, 1, 2, 3, 4, 5].map(at => ({ view: "funnel", at })),
+  { view: "cheat" },
+];
+
+let cur = 0;
+function go(n) {
+  const prev = STEPS[cur];
+  cur = Math.max(0, Math.min(STEPS.length - 1, n));
+  const s = STEPS[cur], at = s.at ?? 99;
+  document.querySelectorAll("section").forEach(el => el.style.display = el.id === s.view ? (s.view === "title" ? "flex" : "block") : "none");
+  $("counter").textContent = `${cur} / ${STEPS.length - 1}`;
+  history.replaceState(null, "", "#" + cur);
+
+  const sec = $(s.view);
+  sec.querySelectorAll("[data-at]").forEach(el => {
+    const k = +el.dataset.at;
+    el.classList.toggle("hide", k > at);
+    el.classList.toggle("pop", k === at && prev && prev.view === s.view && prev.at < at);
+  });
+
+  if (s.view === "space") { spaceAt = at; drawSpace(); }
+  if (s.view === "wt") weights(s.w);
+  if (s.view === "thr") threshold(s.th);
+  if (s.view === "topn") topn(s.n);
+  if (s.view === "pr") { $("pr-a").classList.toggle("win", at >= 1); $("pr-b").classList.toggle("win", at < 1); }
+}
+
+function fit() {
+  const k = Math.min(innerWidth / 1600, innerHeight / 900);
+  $("stage").style.transform = `translate(-50%, -50%) scale(${k})`;
+}
+addEventListener("resize", fit);
+addEventListener("keydown", e => {
+  if (["ArrowRight", "PageDown", " ", "Enter", "ArrowDown"].includes(e.key)) { e.preventDefault(); go(cur + 1); }
+  else if (["ArrowLeft", "PageUp", "Backspace", "ArrowUp"].includes(e.key)) { e.preventDefault(); go(cur - 1); }
+  else if (e.key === "Home") go(0);
+  else if (e.key === "End") go(STEPS.length - 1);
+  else if (e.key === "f" || e.key === "F") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+});
+$("stage").addEventListener("click", e => {
+  const r = $("stage").getBoundingClientRect();
+  go((e.clientX - r.left) / r.width < 0.12 ? cur - 1 : cur + 1);
+});
+document.fonts.ready.then(() => { if (STEPS[cur].view === "space") drawSpace(); });
+fit();
+go(parseInt(location.hash.slice(1), 10) || 0);
+</script>
+</body>
+</html>
