@@ -1,0 +1,4 @@
+# Keep the agent away from private keys and demo infrastructure state
+demo-infra/keys/
+demo-infra/state.env
+*.pem

@@ -1,2 +1,8 @@
 RegulatoryRadarDemo/
 .venv/
+# Instructor-only demo infrastructure (AWS profile 655): keys, state, scripts
+demo-infra/
+*.pem
+# Local, instructor-only MCP config (points at AWS profile 655)
+.cursor/mcp.json
+.mcp.json

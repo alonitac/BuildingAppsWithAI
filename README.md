@@ -78,4 +78,12 @@ Work hard, and have fun 😊
  <td align="center"></td>
  <td align="center"><a target="_blank" href="tutorials/intro_to_mcp.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
 </tr>
+<tr>
+ <td>7</td>
+ <td>CD</td>
+ <td><a target="_blank" href="tutorials/cd_workflow.md">CD Workflow</a></td>
+ <td align="center"></td>
+ <td align="center"></td>
+ <td align="center"></td>
+</tr>
 </table>
