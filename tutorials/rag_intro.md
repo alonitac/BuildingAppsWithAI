@@ -191,3 +191,12 @@ Ask: **How many days do we have to triage a new regulatory change?**
 
 The SOP says 5 business days, but the meeting minutes changed it to 3, starting 2026-10-01. A good answer gives 3, and mentions both documents.
 
+## Stop and clean 
+
+From `ragflow/docker` directory run:
+
+```bash
+docker compose -f docker-compose.yml down -v
+```
+
+This stops RAGFlow and deletes its volumes: MySQL, Elasticsearch, MinIO, and the rest. The next start is empty. Without `-v`, Compose keeps that data and the next start picks up where you left off.
