@@ -86,4 +86,12 @@ Work hard, and have fun 😊
  <td align="center"></td>
  <td align="center"></td>
 </tr>
+<tr>
+ <td>8</td>
+ <td>RAG</td>
+ <td><a target="_blank" href="tutorials/rag_intro.md">RAG Intro</a></td>
+ <td align="center"></td>
+ <td align="center"></td>
+ <td align="center"></td>
+</tr>
 </table>
