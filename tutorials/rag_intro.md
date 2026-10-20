@@ -118,7 +118,7 @@ Troubleshooting:
     | Type | Model |
     |---|---|
     | Chat (LLM) | `amazon.nova-pro-v1:0` |
-    | Embedding | `amazon.titan-embed-text-v2:0:8k` |
+    | Embedding | `amazon.titan-embed-text-v2:0` |
 
 4. Click **Set default models**, and pick both.
 
