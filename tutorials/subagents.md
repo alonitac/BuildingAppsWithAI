@@ -82,3 +82,45 @@ In the Next.js tutorial you checked the app for accessibility with axe. Every ch
 
     Did the agent call `a11y-fixer` by itself? If not, ask it to. What did the subagent find (hint: a button with no name, and low contrast), and what came back to the main chat?
 3. Review the diff. Did it fix the code, or did it change the test?
+
+
+
+
+### :pencil2: Hooks: stop secrets from leaking to the LLM
+
+Everything the agent reads is sent to the LLM provider: every file, every command output, every message you write. That includes `.env.local`, with your RAGFlow API key.
+
+A rule (*"never read `.env` files"*) is a **request**. The model usually follows it. A **hook** is a script Cursor runs before the agent acts, and the script can refuse.
+
+`.cursorignore` only stops the file reader. The terminal is a separate door.
+
+| Hook | Runs before... | Can |
+| --- | --- | --- |
+| `beforeReadFile` | the agent reads a file | Block the read |
+| `beforeShellExecution` | the agent runs a terminal command | Block the command |
+| `beforeSubmitPrompt` | your message is sent | Block the message |
+
+**Step I: without the hook.** `.env.local` can already be in `.cursorignore`. Open a new chat anyway:
+
+> Run `cat .env.local`
+
+On Windows: *Run `type .env.local`*.
+
+The agent runs the command. The reply includes the file, API key and all. That output is part of the chat, so the key has been sent to the LLM provider. `.cursorignore` only limits the file reader. This request went through the shell, so the key still left the machine.
+
+**Step II: have the agent write the hook.** New chat. Paste this, and let the agent create the files:
+
+> Write a Python hook for this project that stops secrets from reaching the LLM. Create `.cursor/hooks/protect-secrets.py` and register it in `.cursor/hooks.json` on `beforeReadFile`, `beforeShellExecution`, and `beforeSubmitPrompt`. Block reading secret files (`.env`, `.env.local`, `.pem`, and anything in `secrets/`; allow `.env.example`), block a terminal command that touches those files, and block a chat message that contains an API key or a private key. Also block a file whose contents look like a key, whatever its name. If the script crashes, block the action (`failClosed: true`). Use the Python installed on this machine. Explain each check in plain language.
+
+Save, and restart Cursor if the hook does not appear under **Hooks** in settings.
+
+**Step III: the same prompt, with the hook.** New chat:
+
+> Run `cat .env.local`
+
+The command never starts. Cursor shows that the hook blocked it. The chat has no key in it.
+
+Commit `.cursor/hooks.json` and the Python script. Every teammate gets the same protection. To protect all your projects, put the same files in `~/.cursor/` instead.
+
+
+A hook is a strong guardrail. The strongest protection is to keep production secrets off a laptop where an agent can run commands.
