@@ -94,4 +94,20 @@ Work hard, and have fun 😊
  <td align="center"></td>
  <td align="center"></td>
 </tr>
+<tr>
+ <td>9</td>
+ <td>UI Apps</td>
+ <td><a target="_blank" href="tutorials/intro_to_ui_with_nextjs.md">Intro to UI Apps with Next.js</a></td>
+ <td align="center"></td>
+ <td align="center"></td>
+ <td align="center"><a target="_blank" href="tutorials/intro_to_ui_with_nextjs.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
+</tr>
+<tr>
+ <td>10</td>
+ <td>Subagents</td>
+ <td><a target="_blank" href="tutorials/subagents.md">Subagents</a></td>
+ <td align="center"></td>
+ <td align="center"></td>
+ <td align="center"><a target="_blank" href="tutorials/subagents.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
+</tr>
 </table>
