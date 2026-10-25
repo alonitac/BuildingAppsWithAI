@@ -330,12 +330,6 @@ Compare. Which would you give your team? Merge the one you prefer into `main`.
 
 Try to use one of the component libraries mentioned in the previous section.
 
-| Round | Library name in the prompt |
-| --- | --- | --- |
-| 1 | shadcn/ui |
-| 2 | Material UI | 
-| 3 | Ant Design | 
-
 To revert to the original version, you can run `git restore .`. 
 
 Use this prompt, and change only the library name:
