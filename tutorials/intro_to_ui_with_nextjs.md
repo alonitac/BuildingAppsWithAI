@@ -113,11 +113,7 @@ Fill in `.env.local`:
 
 - `RAGFLOW_URL`: the address of your RAGFlow server.
 - `RAGFLOW_API_KEY`: in RAGFlow, click your avatar (top right) > **API** > create a new key.
-- `RAGFLOW_CHAT_ID`: the ID of your chat assistant. Find it with the API:
-
-    ```bash
-    curl -H "Authorization: Bearer <your-api-key>" "<ragflow-url>/api/v1/chats"
-    ```
+- `RAGFLOW_CHAT_ID`: the ID of your chat assistant.
 
 Then:
 
