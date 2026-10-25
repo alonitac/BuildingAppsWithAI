@@ -27,7 +27,7 @@ Work hard, and have fun 😊
 <tr><th>#</th><th>Topic</th><th>Tutorial</th><th colspan="3">Resources</th></tr>
 
 <tr>
- <td align="center" colspan="8"><br><b>Session I: <a href="https://github.com/alonitac/RegulatoryRadarDemo">Regulatory Radar Demo App</a></b><br><br></td>
+ <td align="center" colspan="8"><br><b>App I: <a href="https://github.com/alonitac/RegulatoryRadarDemo">Regulatory Radar Demo App</a></b><br><br></td>
 </tr>
 
 <tr>
@@ -94,6 +94,13 @@ Work hard, and have fun 😊
  <td align="center"></td>
  <td align="center"></td>
 </tr>
+
+<tr>
+ <td align="center" colspan="8"><br><b>App II: <a href="https://github.com/alonitac/ChatRAG">ChatRAG</a></b><br><br></td>
+</tr>
+
+
+
 <tr>
  <td>9</td>
  <td>UI Apps</td>
