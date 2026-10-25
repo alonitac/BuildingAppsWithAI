@@ -110,4 +110,12 @@ Work hard, and have fun 😊
  <td align="center"></td>
  <td align="center"><a target="_blank" href="tutorials/subagents.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
 </tr>
+<tr>
+ <td>11</td>
+ <td>Agents Window</td>
+ <td><a target="_blank" href="tutorials/cursor_agents_window.md">The Cursor Agents Window</a></td>
+ <td align="center"></td>
+ <td align="center"></td>
+ <td align="center"><a target="_blank" href="tutorials/cursor_agents_window.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
+</tr>
 </table>
