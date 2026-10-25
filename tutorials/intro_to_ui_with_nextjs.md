@@ -326,6 +326,21 @@ New chat, the same prompt, with one more line at the beginning: *"Use the fronte
 
 Compare. Which would you give your team? Merge the one you prefer into `main`.
 
+### :pencil2: Try component libraries
+
+Try to use one of the component libraries mentioned in the previous section.
+
+| Round | Library name in the prompt |
+| --- | --- | --- |
+| 1 | shadcn/ui |
+| 2 | Material UI | 
+| 3 | Ant Design | 
+
+To revert to the original version, you can run `git restore .`. 
+
+Use this prompt, and change only the library name:
+
+> Rebuild the ChatRAG screen with **shadcn/ui | Material UI | Ant Design**. Keep every feature working. Don't change the API or the RAGFlow calls. Run `npm run build` and `npm run lint`.
 
 
 
