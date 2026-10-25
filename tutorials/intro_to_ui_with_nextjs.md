@@ -217,6 +217,15 @@ Why not call RAGFlow straight from the browser? The key would be visible to ever
 > [!WARNING]
 > Variables that start with `NEXT_PUBLIC_` are copied into the JavaScript sent to the browser. Agents sometimes "fix" a client component by renaming a secret to `NEXT_PUBLIC_...`. Never put a secret there.
 
+## Component libraries
+
+You don't need to reinvent the wheel and design by hand each UI element. There are many component libraries that you can use to build your app. Some of the most popular ones are:
+
+- **shadcn/ui** is a library that copies each component into your project.
+- **Material UI (MUI)** is a package you install. The look follows Google's Material Design.
+- **Ant Design** is good for admin dashboards: tables, forms, and filters. Same idea as MUI: install the package, import the component.
+
+
 ## UI tests with Playwright
 
 **Playwright** opens a real browser and uses the app the way a person does. It opens a page, finds a button, clicks or types, then checks the screen. A **test** is that sequence, written as a small program. When a check fails, the test fails.
