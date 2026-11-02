@@ -76,9 +76,15 @@ Every Monday you get one small PR to review, or nothing.
 
 Automations have **memory** (`MEMORIES.md`) between runs. Useful ("last week I skipped `next` 16 because..."), but don't let untrusted input write into it.
 
+## A machine you connect yourself
+
+A cloud agent can run its commands on a remote computer you own.
+
+Cursor still handles orchestration and model inference, while workers run inside your environment to clone repos, run commands, edit files, execute builds/tests, and reach internal services.
+
 ## Exercises
 
-### Exercise 1: connect GitHub
+### connect GitHub
 
 Cloud agents and automations work on GitHub, not on your laptop. They need access to your repo.
 
@@ -90,4 +96,36 @@ Cloud agents and automations work on GitHub, not on your laptop. They need acces
 
 4. Watch the agent in the sidebar. When it's done, open the pull request on GitHub and review it.
 
+### Issue comment that opens a pull request
+
+Let's create a simple automation that runs when you comment `@myagent` on an issue. The agent reads the issue, makes the change, and opens a pull request for you to review.
+
+1. In the Agents Window, open **Automations** → **New**.
+2. Set the trigger to **GitHub** → **Issue comment**, on your `ChatRAG` repo.
+3. On that trigger, set the comment filter to the keyword `@myagent`. Type `@myagent` with no space before it.
+5. Keep the **pull request creation** tool selected
+6. Paste this prompt:
+
+   ```text
+   A GitHub issue comment contains @myagent. Do the work described in that issue.
+
+   1. Read the issue title, the issue body, and the comment that contains @myagent.
+   2. Do only what the issue asks. Keep the change small.
+   3. Run this repo's checks: `npm run lint` and `npm run build`. If one fails, fix your change and run it again.
+   4. Open one pull request. Start the title with the issue number, for example "docs: #12 one-line README note". In the description, link the issue with `Closes #12` and list the files you changed.
+   5. If the issue is unclear, or it asks for a change outside this repo, stop without a pull request and say why in the run.
+   ```
+
+7. Save the automation and turn it on.
+8. On GitHub, open an issue in your `ChatRAG` repo:
+
+   - **Title:** Add a one-line note to the README
+   - **Body:** At the bottom of `README.md`, add a line: `Last reviewed in class.`
+
+9. Add a new comment on that issue. Editing an old comment does not start a run.
+
+   ```text
+   @myagent
+   please implement
+   ```
 

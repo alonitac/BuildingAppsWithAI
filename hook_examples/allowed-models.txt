@@ -1,0 +1,5 @@
+# Allowed models for this repo.
+# One piece of a model name per line. Case does not matter.
+# A prompt is allowed only when the selected model contains one of these pieces.
+# Lines starting with # are ignored.
+grok
