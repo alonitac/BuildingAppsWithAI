@@ -111,8 +111,8 @@ Work hard, and have fun 😊
 </tr>
 <tr>
  <td>10</td>
- <td>Subagents</td>
- <td><a target="_blank" href="tutorials/subagents.md">Subagents</a></td>
+ <td>Subagents and hooks</td>
+ <td><a target="_blank" href="tutorials/subagents.md">Subagents and hooks</a></td>
  <td align="center"></td>
  <td align="center"></td>
  <td align="center"><a target="_blank" href="tutorials/subagents.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
@@ -125,4 +125,13 @@ Work hard, and have fun 😊
  <td align="center"></td>
  <td align="center"><a target="_blank" href="tutorials/cursor_agents_window.md#exercises"><img src="https://alonitac.github.io/DevOpsTheHardWay/img/pen.png" /></a></td>
 </tr>
+<tr>
+ <td>12</td>
+ <td>agent platforms</td>
+ <td>Grok Bot and Multica demo</td>
+ <td align="center"></td>
+ <td align="center"></td>
+ <td align="center"></td>
+</tr>
 </table>
+
