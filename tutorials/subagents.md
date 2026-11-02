@@ -1,4 +1,4 @@
-# Subagents
+# Subagents and hooks
 
 ## The problem: a full context window
 
@@ -29,8 +29,6 @@ Cursor then:
 
 Click on the subagent in the chat to see the prompt Cursor wrote for it, and what it did.
 
-Cursor also has built-in subagents. The most common is **Explore**, a fast read-only code searcher, which the agent often uses without you asking.
-
 ## Custom subagents
 
 When you give the same kind of job again and again, define a subagent once: a markdown file in `.cursor/agents/` (or `~/.cursor/agents/` for all your projects).
@@ -49,6 +47,26 @@ The instructions: the steps it follows, and exactly what to report back.
 Like a skill, the `description` decides when it's used: the agent calls it when the description matches the task, or when you ask by name (*"use the my-subagent subagent"*). The difference: a skill adds instructions to **your** context, a subagent does the job in **its own** context.
 
 You can also type `/create-subagent` and let Cursor write the file for you.
+
+## Hooks
+
+A **hook** is a script Cursor runs at a fixed moment in the agent's loop. Cursor hands the script a small JSON description of what is about to happen. The script prints JSON back: allow it, write it down, or refuse it.
+
+You list your hooks in `.cursor/hooks.json`. Each entry names the moment and the script, for example: 
+
+```json
+{
+  "version": 1,
+  "hooks": {
+    "beforeSubmitPrompt": [
+      { "command": ".cursor/hooks/audit-log.sh", "timeout": 5, "failClosed": false }
+    ]
+  }
+}
+```
+
+`failClosed: true` means a crash, a timeout, or invalid JSON counts as a refusal. A guard should fail closed.
+
 
 # Exercises
 
@@ -86,41 +104,146 @@ In the Next.js tutorial you checked the app for accessibility with axe. Every ch
 
 
 
-### :pencil2: Hooks: stop secrets from leaking to the LLM
+### :pencil2: Audit log, secret guard, and model allow list
 
-Everything the agent reads is sent to the LLM provider: every file, every command output, every message you write. That includes `.env.local`, with your RAGFlow API key.
+In this exercise we will see three hooks: an audit log, a secret guard, and a model allow list.
 
-A rule (*"never read `.env` files"*) is a **request**. The model usually follows it. A **hook** is a script Cursor runs before the agent acts, and the script can refuse.
-
-`.cursorignore` only stops the file reader. The terminal is a separate door.
-
-| Hook | Runs before... | Can |
-| --- | --- | --- |
-| `beforeReadFile` | the agent reads a file | Block the read |
-| `beforeShellExecution` | the agent runs a terminal command | Block the command |
-| `beforeSubmitPrompt` | your message is sent | Block the message |
-
-**Step I: without the hook.** `.env.local` can already be in `.cursorignore`. Open a new chat anyway:
-
-> Run `cat .env.local`
-
-On Windows: *Run `type .env.local`*.
-
-The agent runs the command. The reply includes the file, API key and all. That output is part of the chat, so the key has been sent to the LLM provider. `.cursorignore` only limits the file reader. This request went through the shell, so the key still left the machine.
-
-**Step II: have the agent write the hook.** New chat. Paste this, and let the agent create the files:
-
-> Write a Python hook for this project that stops secrets from reaching the LLM. Create `.cursor/hooks/protect-secrets.py` and register it in `.cursor/hooks.json` on `beforeReadFile`, `beforeShellExecution`, and `beforeSubmitPrompt`. Block reading secret files (`.env`, `.env.local`, `.pem`, and anything in `secrets/`; allow `.env.example`), block a terminal command that touches those files, and block a chat message that contains an API key or a private key. Also block a file whose contents look like a key, whatever its name. If the script crashes, block the action (`failClosed: true`). Use the Python installed on this machine. Explain each check in plain language.
-
-Save, and restart Cursor if the hook does not appear under **Hooks** in settings.
-
-**Step III: the same prompt, with the hook.** New chat:
-
-> Run `cat .env.local`
-
-The command never starts. Cursor shows that the hook blocked it. The chat has no key in it.
-
-Commit `.cursor/hooks.json` and the Python script. Every teammate gets the same protection. To protect all your projects, put the same files in `~/.cursor/` instead.
+The scripts are in `hook_examples/`. macOS and Linux use the `.sh` file. Windows uses the `.ps1` file, because the Cursor app on Windows runs hooks in PowerShell. 
 
 
-A hook is a strong guardrail. The strongest protection is to keep production secrets off a laptop where an agent can run commands.
+1. **Audit log**
+
+    A security regulation may require a record of every prompt sent to an AI tool, and of every command the agent ran. 
+
+    1. Copy the `audit-log` script into the `.cursor/hooks` folder in the ChatRAG project.
+
+    2. Create `.cursor/hooks.json`.
+
+        macOS and Linux:
+
+        ```json
+        {
+          "version": 1,
+          "hooks": {
+            "beforeSubmitPrompt": [
+              { "command": ".cursor/hooks/audit-log.sh", "timeout": 5, "failClosed": false }
+            ],
+            "beforeShellExecution": [
+              { "command": ".cursor/hooks/audit-log.sh", "timeout": 5, "failClosed": false }
+            ],
+            "afterShellExecution": [
+              { "command": ".cursor/hooks/audit-log.sh", "timeout": 5, "failClosed": false }
+            ],
+            "afterFileEdit": [
+              { "command": ".cursor/hooks/audit-log.sh", "timeout": 5, "failClosed": false }
+            ]
+          }
+        }
+        ```
+
+        Windows. Same moments. PowerShell is slower to start, so the timeout is 20 seconds:
+
+        ```json
+        {
+          "version": 1,
+          "hooks": {
+            "beforeSubmitPrompt": [
+              { "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/audit-log.ps1", "timeout": 20, "failClosed": false }
+            ],
+            "beforeShellExecution": [
+              { "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/audit-log.ps1", "timeout": 20, "failClosed": false }
+            ],
+            "afterShellExecution": [
+              { "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/audit-log.ps1", "timeout": 20, "failClosed": false }
+            ],
+            "afterFileEdit": [
+              { "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/audit-log.ps1", "timeout": 20, "failClosed": false }
+            ]
+          }
+        }
+        ```
+
+    3. New chat. Send:
+
+        > List the files in this folder, then add a blank line at the end of `README.md`.
+
+        Open `.cursor/hook-logs/audit.jsonl`.
+
+2. **Secret guard**
+
+    We want to avoid API keys, tokens, and private keys in an AI chat. After the prompt is sent, the key is on the model provider's side. A hook on `beforeSubmitPrompt` is the efficient control: it reads the prompt and refuses it before Cursor sends it.
+
+    1. Copy the `sensitive-prompt-guard` script into the `.cursor/hooks` folder in the ChatRAG project.
+
+    2. Copy the following JSON into `.cursor/hooks.json` (or ask your agent to merge it with the existing file)
+
+        macOS and Linux:
+
+        ```json
+        {
+          "version": 1,
+          "hooks": {
+            "beforeSubmitPrompt": [
+              { "command": ".cursor/hooks/sensitive-prompt-guard.sh", "timeout": 5, "failClosed": true },
+            ]
+          }
+        }
+        ```
+
+        Windows:
+
+        ```json
+        {
+          "version": 1,
+          "hooks": {
+            "beforeSubmitPrompt": [
+              { "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/sensitive-prompt-guard.ps1", "timeout": 20, "failClosed": true }
+            ],
+          }
+        }
+        ```
+
+    3. New chat. Send this fake key. It has the shape of an OpenAI key, and it is a fake:
+
+        > Here is a key: sk-thisisafakeopenaikey0123456789abcd
+
+        Expect Cursor to refuse it before sending: *This prompt appears to contain sensitive data (OpenAI API key). Remove or replace the sensitive value before resubmitting.*
+
+3. **Model allow list**
+
+    This hook allows a prompt only when the model you picked is on a list stored in the repo. The list is `allowed-models.txt`, next to the script. You edit that file. The script reads it on every prompt.
+
+    1. Copy `allow-models` (both script and list file) into the `.cursor/hooks` folder in the ChatRAG project.
+
+    2. Replace `.cursor/hooks.json` with this file. The allow-list hook is first on `beforeSubmitPrompt`, with `failClosed` set to `true`.
+
+        macOS and Linux:
+
+        ```json
+        {
+          "version": 1,
+          "hooks": {
+            "beforeSubmitPrompt": [
+              { "command": ".cursor/hooks/allow-models.sh", "timeout": 5, "failClosed": true }
+            ],
+          }
+        }
+        ```
+
+        Windows:
+
+        ```json
+        {
+          "version": 1,
+          "hooks": {
+            "beforeSubmitPrompt": [
+              { "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/allow-models.ps1", "timeout": 20, "failClosed": true }
+            ]
+          }
+        }
+        ```
+
+    4. New chat, still on the model you left off the list. Send any short message, such as:
+
+        > What is the title of this repo?
+
