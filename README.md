@@ -127,7 +127,7 @@ Work hard, and have fun 😊
 </tr>
 <tr>
  <td>12</td>
- <td>agent platforms</td>
+ <td>Agent platforms</td>
  <td>Grok Bot and Multica demo</td>
  <td align="center"></td>
  <td align="center"></td>
